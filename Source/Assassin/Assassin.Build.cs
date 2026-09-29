@@ -13,7 +13,7 @@ public class
 	
 		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore",   "GameplayAbilities",
 			"GameplayTags",
-			"GameplayTasks" });
+			"GameplayTasks", "UnLua" });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
