@@ -6,9 +6,13 @@
 -- @DATE ${date} ${time}
 --
 
----@type BP_AssassinGirl_C
+---@class BP_AssassinGirl_C
+---@field AttackSystem? AttackSystem
+---@field GetAssassinAttributeSet fun(self: BP_AssassinGirl_C): any
+---@field Overridden any
 local M = UnLua.Class()
 local AttackSystem = require("Combat.AttackSystem")
+local EnhancedInput = require("UnLua.EnhancedInput")
 
 -- function M:Initialize(Initializer)
 -- end
@@ -24,56 +28,38 @@ function M:OnGASInitialized()
     local ASC = UE.UAbilitySystemBlueprintLibrary.GetAbilitySystemComponent(self)
     local AttributeSet = self:GetAssassinAttributeSet()
 
-    print("GAS Initialized")
-
     if not ASC then
-        print("ASC is nil")
         return
     end
-    print("ASC valid:", ASC)
 
     if not AttributeSet then
-        print("AttributeSet is nil")
         return
     end
-    print("AttributeSet valid:", AttributeSet)
 
     if not self.AttackSystem then
         self.AttackSystem = AttackSystem.New(self)
-        if self.AttackSystem then
-            print("AttackSystem initialized:", self.AttackSystem.Owner, self.AttackSystem.ASC, self.AttackSystem.ComboIndex)
-        end
     end
 
-    local AttributeNames = {
-        "Health",
-        "MaxHealth",
-        "AttackPower",
-        "AssassinationPower",
-        "Defense",
-        "CritChance",
-        "CritDamageBonus",
-        "MoveSpeed",
-        "Adrenaline",
-        "MaxAdrenaline",
-    }
-
-    for _, Name in ipairs(AttributeNames) do
-        local AttributeData = AttributeSet[Name]
-        if AttributeData then
-            print(Name .. " = " .. tostring(AttributeData.CurrentValue))
-        else
-            print(Name .. " is nil")
-        end
+    if self.AttackSystem then
+        self.AttackSystem:GrantLightAttack()
     end
 end
 
-function M:OnHealthChanged(OldValue, NewValue)
-    print("Health Changed:", OldValue, "->", NewValue)
+function M:OnLightAttackStarted()
+    if self.AttackSystem then
+        self.AttackSystem:LightAttack()
+    end
 end
 
--- function M:ReceiveEndPlay()
--- end
+EnhancedInput.BindAction(M, "/Game/Input/IA_LightAttack.IA_LightAttack", "Started", M.OnLightAttackStarted)
+
+function M:ReceiveEndPlay(EndPlayReason)
+    if self.AttackSystem then
+        self.AttackSystem:Destroy()
+        self.AttackSystem = nil
+    end
+    self.Overridden.ReceiveEndPlay(self, EndPlayReason)
+end
 
 -- function M:ReceiveTick(DeltaSeconds)
 -- end
