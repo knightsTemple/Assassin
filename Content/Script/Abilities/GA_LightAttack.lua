@@ -1,12 +1,28 @@
+local WeaponBase = require("Weapon.WeaponBase")
+local AttackEnums = require("Combat.AttackPhase")
+local AttackPhase = AttackEnums.AttackPhase
+local AttackType = AttackEnums.AttackType
+
+-- 显式描述 UnLua 委托接口，避免从测试替身推断生产代码的参数数量。
+---@class AttackDelayDelegate
+---@field Add fun(self: AttackDelayDelegate, Object: any, Callback: function)
+---@field Remove fun(self: AttackDelayDelegate, Object: any, Callback: function)
+
+---@class AttackDelayTask
+---@field OnFinish AttackDelayDelegate
+---@field ReadyForActivation fun(self: AttackDelayTask)
+---@field EndTask fun(self: AttackDelayTask)
+
 ---@class GA_LightAttack_C
----@field AttackSystem? AttackSystem
+---@field LightAttack? LightAttack
 ---@field Ending boolean
 ---@field MontageTask? any
----@field MontagePhase? string
----@field SwordDrawTask? any
----@field ComboWaitTask? any
----@field ComboWindowTask? any
----@field AttackRecoveryTask? any
+---@field MontagePhase? AttackPhase
+---@field SwordDrawTask? AttackDelayTask
+---@field WeaponAttachTask? AttackDelayTask
+---@field ComboWaitTask? AttackDelayTask
+---@field ComboWindowTask? AttackDelayTask
+---@field AttackRecoveryTask? AttackDelayTask
 ---@field MoveInputController? any
 ---@field GetAvatarActorFromActorInfo fun(self: GA_LightAttack_C): any
 ---@field K2_CommitAbility fun(self: GA_LightAttack_C): boolean
@@ -23,6 +39,8 @@ function M:K2_ActivateAbility()
     self.Ending = false -- 技能是否已进入结束流程，防止重复结束或继续执行攻击流程
     self.MontageTask = nil -- 当前播放蒙太奇的技能任务
     self.MontagePhase = nil -- 当前蒙太奇阶段：拔剑、攻击或收剑
+    self.WeaponAttachTask = nil
+    self.PendingWeaponDrawn = nil
     self.SwordDrawTask = nil -- 拔剑达到可出招时刻的延时任务
     self.ComboWaitTask = nil -- 等待下一次连击输入的超时任务
     self.ComboWindowTask = nil -- 等待连击输入窗口开启的延时任务
@@ -33,8 +51,8 @@ function M:K2_ActivateAbility()
     local Avatar = self:GetAvatarActorFromActorInfo()
     ---@type AttackSystem?
     local CombatSystem = IsValid(Avatar) and Avatar.AttackSystem or nil
-    self.AttackSystem = CombatSystem
-    if not CombatSystem or not CombatSystem:BeginLightAttack(self) then
+    self.LightAttack = CombatSystem and CombatSystem:GetAttack(AttackType.Light) or nil
+    if not self.LightAttack or not self.LightAttack:BeginAttack(self) then
         self:FinishLightAttack(true)
         return
     end
@@ -49,28 +67,38 @@ function M:K2_ActivateAbility()
 end
 
 function M:PlaySwordDraw()
-    if not self.Ending and self.AttackSystem then
-        self:PlaySwordAction(self.AttackSystem.SwordDrawMontage, "Drawing")
+    if not self.Ending and self.LightAttack then
+        self:PlaySwordAction(self.LightAttack.SwordDrawMontage, AttackPhase.Drawing)
     end
 end
 
 function M:PlaySwordSheathe()
-    if not self.Ending and self.AttackSystem then
-        self:PlaySwordAction(self.AttackSystem.SwordSheatheMontage, "Sheathing")
+    if not self.Ending and self.LightAttack then
+        self:PlaySwordAction(self.LightAttack.SwordSheatheMontage, AttackPhase.Sheathing)
     end
 end
 
+---@param Phase AttackPhase
 function M:PlaySwordAction(Montage, Phase)
     self:ClearComboWaitTask()
     self:ClearAttackTimingTasks()
     self:ClearMontageTask()
-    if not IsValid(Montage) then
+    if not self.LightAttack or not self.LightAttack:HasCurrentWeapon() then
         self:FinishLightAttack(true)
         return
     end
+    if not IsValid(Montage) then
+        -- 拔出/收起动画可选，没有配置的武器直接出招或正常结束。
+        if Phase == AttackPhase.Drawing then
+            self.LightAttack:OnSwordDrawReady(self)
+        else
+            self:FinishLightAttack(false)
+        end
+        return
+    end
     local Task = UE.UAbilityTask_PlayMontageAndWait.CreatePlayMontageAndWaitProxy(
-        self, Phase, Montage, self.AttackSystem.SwordActionPlayRate, "", true, 1.0, 0.0, true)
-    if not IsValid(Task) then
+        self, Phase, Montage, self.LightAttack.SwordActionPlayRate, "", true, 1.0, 0.0, true)
+    if not Task or not IsValid(Task) then
         self:FinishLightAttack(true)
         return
     end
@@ -80,14 +108,19 @@ function M:PlaySwordAction(Montage, Phase)
     Task.OnCompleted:Add(self, self.OnMontageCompleted)
     Task.OnInterrupted:Add(self, self.OnMontageInterrupted)
     Task.OnCancelled:Add(self, self.OnMontageInterrupted)
-    self:LockMoveInput()
+    -- 收拔剑只覆盖上半身，释放本技能持有的移动锁。
+    self:UnlockMoveInput()
     print("GA_LightAttack: sword", Phase, Montage:GetName())
     Task:ReadyForActivation()
-    if Phase == "Drawing" and not self.Ending and self.MontageTask == Task then
-        local ReadyTime = math.min(self.AttackSystem.SwordDrawReadyTime, Montage:GetPlayLength())
-        local Rate = self.AttackSystem.SwordActionPlayRate * math.max(0.1, Montage.RateScale)
+    if not self.Ending and self.MontageTask == Task then
+        self:StartWeaponAttachTask(Phase, Montage)
+    end
+    if Phase == AttackPhase.Drawing and not self.Ending and self.MontageTask == Task then
+        local ReadyTime = math.min(self.LightAttack.SwordDrawReadyTime or Montage:GetPlayLength(), Montage:GetPlayLength())
+        local Rate = self.LightAttack.SwordActionPlayRate * math.max(0.1, Montage.RateScale)
+        ---@type AttackDelayTask?
         local DrawTask = UE.UAbilityTask_WaitDelay.WaitDelay(self, math.max(0.01, ReadyTime / Rate))
-        if not IsValid(DrawTask) then
+        if not DrawTask or not IsValid(DrawTask) then
             self:FinishLightAttack(true)
             return
         end
@@ -97,17 +130,67 @@ function M:PlaySwordAction(Montage, Phase)
     end
 end
 
+function M:ApplyWeaponAttachment(Drawn)
+    local Weapon = self.LightAttack and self.LightAttack.ActiveWeapon
+    if not Weapon or not IsValid(Weapon) then return false end
+    return WeaponBase.SetWeaponDrawn(Weapon, Drawn)
+end
+
+function M:StartWeaponAttachTask(Phase, Montage)
+    local LightAttack = self.LightAttack
+    local Weapon = LightAttack and LightAttack.ActiveWeapon
+    if not LightAttack or not Weapon or not IsValid(Weapon) then
+        self:FinishLightAttack(true)
+        return
+    end
+    local Drawn = Phase == AttackPhase.Drawing
+    local Time
+    if Drawn then Time = Weapon.WeaponDrawAttachTime else Time = Weapon.WeaponSheatheAttachTime end
+    if Time == nil then return end
+    local Rate = LightAttack.SwordActionPlayRate * math.max(0.1, Montage.RateScale)
+    self.PendingWeaponDrawn = Drawn
+    ---@type AttackDelayTask?
+    local Task = UE.UAbilityTask_WaitDelay.WaitDelay(self,
+        math.max(0.01, math.min(Time, Montage:GetPlayLength()) / Rate))
+    if not Task or not IsValid(Task) then
+        self:FinishLightAttack(true)
+        return
+    end
+    self.WeaponAttachTask = Task
+    Task.OnFinish:Add(self, self.OnWeaponAttachMoment)
+    Task:ReadyForActivation()
+end
+
+function M:OnWeaponAttachMoment()
+    local Drawn = self.PendingWeaponDrawn
+    self:ClearWeaponAttachTask()
+    if not self.Ending and (not self.LightAttack or not self.LightAttack:HasCurrentWeapon()
+        or not self:ApplyWeaponAttachment(Drawn)) then
+        self:FinishLightAttack(true)
+    end
+end
+
+function M:ClearWeaponAttachTask()
+    local Task = self.WeaponAttachTask
+    self.WeaponAttachTask = nil
+    self.PendingWeaponDrawn = nil
+    if Task and IsValid(Task) then
+        Task.OnFinish:Remove(self, self.OnWeaponAttachMoment)
+        Task:EndTask()
+    end
+end
+
 function M:OnSwordDrawTimedReady()
     self:ClearSwordDrawTask()
-    if not self.Ending and self.MontagePhase == "Drawing" and self.AttackSystem then
-        self.AttackSystem:OnSwordDrawReady(self)
+    if not self.Ending and self.MontagePhase == AttackPhase.Drawing and self.LightAttack then
+        self.LightAttack:OnSwordDrawReady(self)
     end
 end
 
 function M:ClearSwordDrawTask()
     local Task = self.SwordDrawTask
     self.SwordDrawTask = nil
-    if IsValid(Task) then
+    if Task and IsValid(Task) then
         Task.OnFinish:Remove(self, self.OnSwordDrawTimedReady)
         Task:EndTask()
     end
@@ -122,13 +205,18 @@ function M:PlayCurrentAttack()
     self:ClearAttackTimingTasks()
     self:ClearMontageTask()
 
-    local Montage = self.AttackSystem:GetCurrentAttackMontage()
-    if not IsValid(Montage) then
+    local Montage = self.LightAttack:GetCurrentAttackMontage()
+    if not Montage or not IsValid(Montage) then
         self:FinishLightAttack(true)
         return
     end
 
-    local Timing = self.AttackSystem:GetCurrentAttackTiming()
+    if not self:ApplyWeaponAttachment(true) then
+        self:FinishLightAttack(true)
+        return
+    end
+
+    local Timing = self.LightAttack:GetCurrentAttackTiming()
     if not Timing then
         self:FinishLightAttack(true)
         return
@@ -139,19 +227,19 @@ function M:PlayCurrentAttack()
     local EffectiveRate = PlayRate * math.max(0.1, Montage.RateScale)
     local Task = UE.UAbilityTask_PlayMontageAndWait.CreatePlayMontageAndWaitProxy(
         self, "LightAttack", Montage, PlayRate, "", true, 1.0, StartTime, true)
-    if not IsValid(Task) then
+    if not Task or not IsValid(Task) then
         self:FinishLightAttack(true)
         return
     end
 
-    self.MontagePhase = "Attacking"
+    self.MontagePhase = AttackPhase.Attacking
     self.MontageTask = Task
     Task.OnBlendOut:Add(self, self.OnMontageBlendOut)
     Task.OnCompleted:Add(self, self.OnMontageCompleted)
     Task.OnInterrupted:Add(self, self.OnMontageInterrupted)
     Task.OnCancelled:Add(self, self.OnMontageInterrupted)
     self:LockMoveInput()
-    print("GA_LightAttack: play", self.AttackSystem.ComboIndex, Montage:GetName())
+    print("GA_LightAttack: play", self.LightAttack.ComboIndex, Montage:GetName())
     Task:ReadyForActivation()
     -- 播放失败可能同步触发 OnCancelled，此时不能再创建计时任务。
     if not self.Ending and self.MontageTask == Task then
@@ -163,8 +251,9 @@ function M:StartAttackTimingTasks(Timing, StartTime, PlayRate, Length)
     local RecoveryTime = math.min(Timing.RecoveryTime, Length)
     if Timing.ComboTime then
         local ComboTime = math.min(Timing.ComboTime, RecoveryTime)
+        ---@type AttackDelayTask?
         local Task = UE.UAbilityTask_WaitDelay.WaitDelay(self, math.max(0.01, (ComboTime - StartTime) / PlayRate))
-        if not IsValid(Task) then
+        if not Task or not IsValid(Task) then
             self:FinishLightAttack(true)
             return
         end
@@ -173,8 +262,9 @@ function M:StartAttackTimingTasks(Timing, StartTime, PlayRate, Length)
         Task:ReadyForActivation()
     end
 
+    ---@type AttackDelayTask?
     local Task = UE.UAbilityTask_WaitDelay.WaitDelay(self, math.max(0.01, (RecoveryTime - StartTime) / PlayRate))
-    if not IsValid(Task) then
+    if not Task or not IsValid(Task) then
         self:FinishLightAttack(true)
         return
     end
@@ -186,19 +276,19 @@ end
 function M:OnAttackComboWindowOpened()
     local Task = self.ComboWindowTask
     self.ComboWindowTask = nil
-    if IsValid(Task) then
+    if Task and IsValid(Task) then
         Task.OnFinish:Remove(self, self.OnAttackComboWindowOpened)
         Task:EndTask()
     end
-    if not self.Ending and self.AttackSystem then
-        self.AttackSystem:OnLightAttackComboWindow(self)
+    if not self.Ending and self.LightAttack then
+        self.LightAttack:OnLightAttackComboWindow(self)
     end
 end
 
 function M:OnAttackRecoveryReady()
     self:ClearAttackTimingTasks()
-    if not self.Ending and self.AttackSystem then
-        self.AttackSystem:OnLightAttackRecoveryReady(self)
+    if not self.Ending and self.LightAttack then
+        self.LightAttack:OnLightAttackRecoveryReady(self)
     end
 end
 
@@ -210,12 +300,12 @@ function M:StopCurrentAttack()
 end
 
 function M:OnMontageBlendOut()
-    if not self.Ending and self.AttackSystem then
-        if self.MontagePhase == "Drawing" then
+    if not self.Ending and self.LightAttack then
+        if self.MontagePhase == AttackPhase.Drawing then
             -- 在拔剑最后的混出阶段接第一刀，避免回到站姿再起手。
-            self.AttackSystem:OnSwordDrawReady(self)
-        elseif self.MontagePhase == "Attacking" then
-            self.AttackSystem:OnLightAttackComboWindow(self)
+            self.LightAttack:OnSwordDrawReady(self)
+        elseif self.MontagePhase == AttackPhase.Attacking then
+            self.LightAttack:OnLightAttackComboWindow(self)
         end
     end
 end
@@ -228,12 +318,12 @@ function M:OnMontageCompleted()
     local Phase = self.MontagePhase
     self:ClearAttackTimingTasks()
     self:ClearMontageTask()
-    if self.AttackSystem then
-        if Phase == "Drawing" then
-            self.AttackSystem:OnSwordDrawReady(self)
-        elseif Phase == "Attacking" then
-            self.AttackSystem:OnLightAttackRecoveryReady(self)
-        elseif Phase == "Sheathing" then
+    if self.LightAttack then
+        if Phase == AttackPhase.Drawing then
+            self.LightAttack:OnSwordDrawReady(self)
+        elseif Phase == AttackPhase.Attacking then
+            self.LightAttack:OnLightAttackRecoveryReady(self)
+        elseif Phase == AttackPhase.Sheathing then
             self:FinishLightAttack(false)
         end
     end
@@ -251,8 +341,9 @@ function M:WaitForComboInput(Duration)
     self:ClearComboWaitTask()
     -- Recovery is complete; movement is allowed while waiting for the next press.
     self:UnlockMoveInput()
+    ---@type AttackDelayTask?
     local Task = UE.UAbilityTask_WaitDelay.WaitDelay(self, Duration)
-    if not IsValid(Task) then
+    if not Task or not IsValid(Task) then
         self:FinishLightAttack(true)
         return
     end
@@ -263,8 +354,8 @@ function M:WaitForComboInput(Duration)
 end
 
 function M:OnComboInputExpired()
-    if not self.Ending and self.AttackSystem then
-        self.AttackSystem:BeginSwordSheathe(self)
+    if not self.Ending and self.LightAttack then
+        self.LightAttack:BeginSwordSheathe(self)
     end
 end
 
@@ -301,11 +392,12 @@ function M:UnlockMoveInput()
 end
 
 function M:ClearMontageTask(AbilityEnding)
+    self:ClearWeaponAttachTask()
     self:ClearSwordDrawTask()
     local Task = self.MontageTask
     self.MontageTask = nil
     self.MontagePhase = nil
-    if IsValid(Task) then
+    if Task and IsValid(Task) then
         Task.OnBlendOut:Remove(self, self.OnMontageBlendOut)
         Task.OnCompleted:Remove(self, self.OnMontageCompleted)
         Task.OnInterrupted:Remove(self, self.OnMontageInterrupted)
@@ -320,7 +412,7 @@ end
 function M:ClearComboWaitTask()
     local Task = self.ComboWaitTask
     self.ComboWaitTask = nil
-    if IsValid(Task) then
+    if Task and IsValid(Task) then
         Task.OnFinish:Remove(self, self.OnComboInputExpired)
         Task:EndTask()
     end
@@ -329,13 +421,13 @@ end
 function M:ClearAttackTimingTasks()
     local WindowTask = self.ComboWindowTask
     self.ComboWindowTask = nil
-    if IsValid(WindowTask) then
+    if WindowTask and IsValid(WindowTask) then
         WindowTask.OnFinish:Remove(self, self.OnAttackComboWindowOpened)
         WindowTask:EndTask()
     end
     local RecoveryTask = self.AttackRecoveryTask
     self.AttackRecoveryTask = nil
-    if IsValid(RecoveryTask) then
+    if RecoveryTask and IsValid(RecoveryTask) then
         RecoveryTask.OnFinish:Remove(self, self.OnAttackRecoveryReady)
         RecoveryTask:EndTask()
     end
@@ -360,10 +452,13 @@ function M:K2_OnEndAbility(WasCancelled)
     self:ClearComboWaitTask()
     self:ClearAttackTimingTasks()
     self:ClearMontageTask(true)
-    if self.AttackSystem then
-        self.AttackSystem:OnLightAttackEnded(self)
+    if self.LightAttack then
+        if self.LightAttack:HasCurrentWeapon() then
+            self:ApplyWeaponAttachment(false)
+        end
+        self.LightAttack:OnAttackEnded(self)
     end
-    self.AttackSystem = nil
+    self.LightAttack = nil
     print("GA_LightAttack: ended", WasCancelled)
 end
 

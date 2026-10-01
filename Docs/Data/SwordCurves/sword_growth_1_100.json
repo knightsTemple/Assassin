@@ -1,0 +1,806 @@
+{
+  "version": 1,
+  "kind": "project_balance_not_ubisoft_formula",
+  "rows": [
+    {
+      "level": 1,
+      "AttackPower": 20.0,
+      "AssassinationPower": 60.0,
+      "CritDamageBonus": 0.1,
+      "CritChance": 0.02,
+      "Weight": 2.0
+    },
+    {
+      "level": 2,
+      "AttackPower": 20.8445,
+      "AssassinationPower": 62.5335,
+      "CritDamageBonus": 0.104844,
+      "CritChance": 0.021129,
+      "Weight": 2.0
+    },
+    {
+      "level": 3,
+      "AttackPower": 21.7246,
+      "AssassinationPower": 65.1738,
+      "CritDamageBonus": 0.109677,
+      "CritChance": 0.022253,
+      "Weight": 2.0
+    },
+    {
+      "level": 4,
+      "AttackPower": 22.6419,
+      "AssassinationPower": 67.9257,
+      "CritDamageBonus": 0.114501,
+      "CritChance": 0.023373,
+      "Weight": 2.0
+    },
+    {
+      "level": 5,
+      "AttackPower": 23.598,
+      "AssassinationPower": 70.794,
+      "CritDamageBonus": 0.119315,
+      "CritChance": 0.024488,
+      "Weight": 2.0
+    },
+    {
+      "level": 6,
+      "AttackPower": 24.5944,
+      "AssassinationPower": 73.7832,
+      "CritDamageBonus": 0.124118,
+      "CritChance": 0.025599,
+      "Weight": 2.0
+    },
+    {
+      "level": 7,
+      "AttackPower": 25.6328,
+      "AssassinationPower": 76.8984,
+      "CritDamageBonus": 0.128912,
+      "CritChance": 0.026705,
+      "Weight": 2.0
+    },
+    {
+      "level": 8,
+      "AttackPower": 26.7152,
+      "AssassinationPower": 80.1456,
+      "CritDamageBonus": 0.133695,
+      "CritChance": 0.027806,
+      "Weight": 2.0
+    },
+    {
+      "level": 9,
+      "AttackPower": 27.8432,
+      "AssassinationPower": 83.5296,
+      "CritDamageBonus": 0.138467,
+      "CritChance": 0.028902,
+      "Weight": 2.0
+    },
+    {
+      "level": 10,
+      "AttackPower": 29.0188,
+      "AssassinationPower": 87.0564,
+      "CritDamageBonus": 0.14323,
+      "CritChance": 0.029993,
+      "Weight": 2.0
+    },
+    {
+      "level": 11,
+      "AttackPower": 30.2441,
+      "AssassinationPower": 90.7323,
+      "CritDamageBonus": 0.147981,
+      "CritChance": 0.03108,
+      "Weight": 2.0
+    },
+    {
+      "level": 12,
+      "AttackPower": 31.5212,
+      "AssassinationPower": 94.5636,
+      "CritDamageBonus": 0.152722,
+      "CritChance": 0.032161,
+      "Weight": 2.0
+    },
+    {
+      "level": 13,
+      "AttackPower": 32.8521,
+      "AssassinationPower": 98.5563,
+      "CritDamageBonus": 0.157452,
+      "CritChance": 0.033238,
+      "Weight": 2.0
+    },
+    {
+      "level": 14,
+      "AttackPower": 34.2393,
+      "AssassinationPower": 102.7179,
+      "CritDamageBonus": 0.162172,
+      "CritChance": 0.03431,
+      "Weight": 2.0
+    },
+    {
+      "level": 15,
+      "AttackPower": 35.685,
+      "AssassinationPower": 107.055,
+      "CritDamageBonus": 0.16688,
+      "CritChance": 0.035377,
+      "Weight": 2.0
+    },
+    {
+      "level": 16,
+      "AttackPower": 37.1918,
+      "AssassinationPower": 111.5754,
+      "CritDamageBonus": 0.171578,
+      "CritChance": 0.036439,
+      "Weight": 2.0
+    },
+    {
+      "level": 17,
+      "AttackPower": 38.7622,
+      "AssassinationPower": 116.2866,
+      "CritDamageBonus": 0.176264,
+      "CritChance": 0.037496,
+      "Weight": 2.0
+    },
+    {
+      "level": 18,
+      "AttackPower": 40.3989,
+      "AssassinationPower": 121.1967,
+      "CritDamageBonus": 0.180939,
+      "CritChance": 0.038547,
+      "Weight": 2.0
+    },
+    {
+      "level": 19,
+      "AttackPower": 42.1047,
+      "AssassinationPower": 126.3141,
+      "CritDamageBonus": 0.185602,
+      "CritChance": 0.039594,
+      "Weight": 2.0
+    },
+    {
+      "level": 20,
+      "AttackPower": 43.8825,
+      "AssassinationPower": 131.6475,
+      "CritDamageBonus": 0.190254,
+      "CritChance": 0.040636,
+      "Weight": 2.0
+    },
+    {
+      "level": 21,
+      "AttackPower": 45.7354,
+      "AssassinationPower": 137.2062,
+      "CritDamageBonus": 0.194894,
+      "CritChance": 0.041672,
+      "Weight": 2.0
+    },
+    {
+      "level": 22,
+      "AttackPower": 47.6665,
+      "AssassinationPower": 142.9995,
+      "CritDamageBonus": 0.199523,
+      "CritChance": 0.042703,
+      "Weight": 2.0
+    },
+    {
+      "level": 23,
+      "AttackPower": 49.6792,
+      "AssassinationPower": 149.0376,
+      "CritDamageBonus": 0.20414,
+      "CritChance": 0.043729,
+      "Weight": 2.0
+    },
+    {
+      "level": 24,
+      "AttackPower": 51.7769,
+      "AssassinationPower": 155.3307,
+      "CritDamageBonus": 0.208745,
+      "CritChance": 0.044749,
+      "Weight": 2.0
+    },
+    {
+      "level": 25,
+      "AttackPower": 53.9631,
+      "AssassinationPower": 161.8893,
+      "CritDamageBonus": 0.213337,
+      "CritChance": 0.045764,
+      "Weight": 2.0
+    },
+    {
+      "level": 26,
+      "AttackPower": 56.2417,
+      "AssassinationPower": 168.7251,
+      "CritDamageBonus": 0.217918,
+      "CritChance": 0.046774,
+      "Weight": 2.0
+    },
+    {
+      "level": 27,
+      "AttackPower": 58.6164,
+      "AssassinationPower": 175.8492,
+      "CritDamageBonus": 0.222486,
+      "CritChance": 0.047778,
+      "Weight": 2.0
+    },
+    {
+      "level": 28,
+      "AttackPower": 61.0914,
+      "AssassinationPower": 183.2742,
+      "CritDamageBonus": 0.227041,
+      "CritChance": 0.048777,
+      "Weight": 2.0
+    },
+    {
+      "level": 29,
+      "AttackPower": 63.671,
+      "AssassinationPower": 191.013,
+      "CritDamageBonus": 0.231584,
+      "CritChance": 0.04977,
+      "Weight": 2.0
+    },
+    {
+      "level": 30,
+      "AttackPower": 66.3594,
+      "AssassinationPower": 199.0782,
+      "CritDamageBonus": 0.236115,
+      "CritChance": 0.050758,
+      "Weight": 2.0
+    },
+    {
+      "level": 31,
+      "AttackPower": 69.1614,
+      "AssassinationPower": 207.4842,
+      "CritDamageBonus": 0.240632,
+      "CritChance": 0.05174,
+      "Weight": 2.0
+    },
+    {
+      "level": 32,
+      "AttackPower": 72.0817,
+      "AssassinationPower": 216.2451,
+      "CritDamageBonus": 0.245136,
+      "CritChance": 0.052716,
+      "Weight": 2.0
+    },
+    {
+      "level": 33,
+      "AttackPower": 75.1253,
+      "AssassinationPower": 225.3759,
+      "CritDamageBonus": 0.249627,
+      "CritChance": 0.053687,
+      "Weight": 2.0
+    },
+    {
+      "level": 34,
+      "AttackPower": 78.2974,
+      "AssassinationPower": 234.8922,
+      "CritDamageBonus": 0.254105,
+      "CritChance": 0.054652,
+      "Weight": 2.0
+    },
+    {
+      "level": 35,
+      "AttackPower": 81.6034,
+      "AssassinationPower": 244.8102,
+      "CritDamageBonus": 0.258569,
+      "CritChance": 0.055611,
+      "Weight": 2.0
+    },
+    {
+      "level": 36,
+      "AttackPower": 85.049,
+      "AssassinationPower": 255.147,
+      "CritDamageBonus": 0.263019,
+      "CritChance": 0.056564,
+      "Weight": 2.0
+    },
+    {
+      "level": 37,
+      "AttackPower": 88.6401,
+      "AssassinationPower": 265.9203,
+      "CritDamageBonus": 0.267455,
+      "CritChance": 0.057511,
+      "Weight": 2.0
+    },
+    {
+      "level": 38,
+      "AttackPower": 92.3829,
+      "AssassinationPower": 277.1487,
+      "CritDamageBonus": 0.271878,
+      "CritChance": 0.058452,
+      "Weight": 2.0
+    },
+    {
+      "level": 39,
+      "AttackPower": 96.2837,
+      "AssassinationPower": 288.8511,
+      "CritDamageBonus": 0.276286,
+      "CritChance": 0.059387,
+      "Weight": 2.0
+    },
+    {
+      "level": 40,
+      "AttackPower": 100.3492,
+      "AssassinationPower": 301.0476,
+      "CritDamageBonus": 0.280679,
+      "CritChance": 0.060316,
+      "Weight": 2.0
+    },
+    {
+      "level": 41,
+      "AttackPower": 104.5863,
+      "AssassinationPower": 313.7589,
+      "CritDamageBonus": 0.285059,
+      "CritChance": 0.061239,
+      "Weight": 2.0
+    },
+    {
+      "level": 42,
+      "AttackPower": 109.0024,
+      "AssassinationPower": 327.0072,
+      "CritDamageBonus": 0.289423,
+      "CritChance": 0.062156,
+      "Weight": 2.0
+    },
+    {
+      "level": 43,
+      "AttackPower": 113.6049,
+      "AssassinationPower": 340.8147,
+      "CritDamageBonus": 0.293772,
+      "CritChance": 0.063066,
+      "Weight": 2.0
+    },
+    {
+      "level": 44,
+      "AttackPower": 118.4018,
+      "AssassinationPower": 355.2054,
+      "CritDamageBonus": 0.298106,
+      "CritChance": 0.06397,
+      "Weight": 2.0
+    },
+    {
+      "level": 45,
+      "AttackPower": 123.4012,
+      "AssassinationPower": 370.2036,
+      "CritDamageBonus": 0.302425,
+      "CritChance": 0.064868,
+      "Weight": 2.0
+    },
+    {
+      "level": 46,
+      "AttackPower": 128.6117,
+      "AssassinationPower": 385.8351,
+      "CritDamageBonus": 0.306727,
+      "CritChance": 0.065759,
+      "Weight": 2.0
+    },
+    {
+      "level": 47,
+      "AttackPower": 134.0422,
+      "AssassinationPower": 402.1266,
+      "CritDamageBonus": 0.311014,
+      "CritChance": 0.066643,
+      "Weight": 2.0
+    },
+    {
+      "level": 48,
+      "AttackPower": 139.7021,
+      "AssassinationPower": 419.1063,
+      "CritDamageBonus": 0.315285,
+      "CritChance": 0.067521,
+      "Weight": 2.0
+    },
+    {
+      "level": 49,
+      "AttackPower": 145.6009,
+      "AssassinationPower": 436.8027,
+      "CritDamageBonus": 0.31954,
+      "CritChance": 0.068392,
+      "Weight": 2.0
+    },
+    {
+      "level": 50,
+      "AttackPower": 151.7487,
+      "AssassinationPower": 455.2461,
+      "CritDamageBonus": 0.323777,
+      "CritChance": 0.069256,
+      "Weight": 2.0
+    },
+    {
+      "level": 51,
+      "AttackPower": 158.1562,
+      "AssassinationPower": 474.4686,
+      "CritDamageBonus": 0.327998,
+      "CritChance": 0.070113,
+      "Weight": 2.0
+    },
+    {
+      "level": 52,
+      "AttackPower": 164.8342,
+      "AssassinationPower": 494.5026,
+      "CritDamageBonus": 0.332202,
+      "CritChance": 0.070964,
+      "Weight": 2.0
+    },
+    {
+      "level": 53,
+      "AttackPower": 171.7942,
+      "AssassinationPower": 515.3826,
+      "CritDamageBonus": 0.336388,
+      "CritChance": 0.071807,
+      "Weight": 2.0
+    },
+    {
+      "level": 54,
+      "AttackPower": 179.048,
+      "AssassinationPower": 537.144,
+      "CritDamageBonus": 0.340556,
+      "CritChance": 0.072643,
+      "Weight": 2.0
+    },
+    {
+      "level": 55,
+      "AttackPower": 186.6082,
+      "AssassinationPower": 559.8246,
+      "CritDamageBonus": 0.344707,
+      "CritChance": 0.073472,
+      "Weight": 2.0
+    },
+    {
+      "level": 56,
+      "AttackPower": 194.4875,
+      "AssassinationPower": 583.4625,
+      "CritDamageBonus": 0.348839,
+      "CritChance": 0.074294,
+      "Weight": 2.0
+    },
+    {
+      "level": 57,
+      "AttackPower": 202.6996,
+      "AssassinationPower": 608.0988,
+      "CritDamageBonus": 0.352952,
+      "CritChance": 0.075108,
+      "Weight": 2.0
+    },
+    {
+      "level": 58,
+      "AttackPower": 211.2584,
+      "AssassinationPower": 633.7752,
+      "CritDamageBonus": 0.357046,
+      "CritChance": 0.075915,
+      "Weight": 2.0
+    },
+    {
+      "level": 59,
+      "AttackPower": 220.1786,
+      "AssassinationPower": 660.5358,
+      "CritDamageBonus": 0.36112,
+      "CritChance": 0.076714,
+      "Weight": 2.0
+    },
+    {
+      "level": 60,
+      "AttackPower": 229.4755,
+      "AssassinationPower": 688.4265,
+      "CritDamageBonus": 0.365175,
+      "CritChance": 0.077505,
+      "Weight": 2.0
+    },
+    {
+      "level": 61,
+      "AttackPower": 239.1649,
+      "AssassinationPower": 717.4947,
+      "CritDamageBonus": 0.36921,
+      "CritChance": 0.078288,
+      "Weight": 2.0
+    },
+    {
+      "level": 62,
+      "AttackPower": 249.2634,
+      "AssassinationPower": 747.7902,
+      "CritDamageBonus": 0.373224,
+      "CritChance": 0.079064,
+      "Weight": 2.0
+    },
+    {
+      "level": 63,
+      "AttackPower": 259.7883,
+      "AssassinationPower": 779.3649,
+      "CritDamageBonus": 0.377217,
+      "CritChance": 0.079831,
+      "Weight": 2.0
+    },
+    {
+      "level": 64,
+      "AttackPower": 270.7577,
+      "AssassinationPower": 812.2731,
+      "CritDamageBonus": 0.381188,
+      "CritChance": 0.08059,
+      "Weight": 2.0
+    },
+    {
+      "level": 65,
+      "AttackPower": 282.1902,
+      "AssassinationPower": 846.5706,
+      "CritDamageBonus": 0.385137,
+      "CritChance": 0.081341,
+      "Weight": 2.0
+    },
+    {
+      "level": 66,
+      "AttackPower": 294.1054,
+      "AssassinationPower": 882.3162,
+      "CritDamageBonus": 0.389064,
+      "CritChance": 0.082083,
+      "Weight": 2.0
+    },
+    {
+      "level": 67,
+      "AttackPower": 306.5238,
+      "AssassinationPower": 919.5714,
+      "CritDamageBonus": 0.392968,
+      "CritChance": 0.082816,
+      "Weight": 2.0
+    },
+    {
+      "level": 68,
+      "AttackPower": 319.4665,
+      "AssassinationPower": 958.3995,
+      "CritDamageBonus": 0.396848,
+      "CritChance": 0.083541,
+      "Weight": 2.0
+    },
+    {
+      "level": 69,
+      "AttackPower": 332.9557,
+      "AssassinationPower": 998.8671,
+      "CritDamageBonus": 0.400704,
+      "CritChance": 0.084256,
+      "Weight": 2.0
+    },
+    {
+      "level": 70,
+      "AttackPower": 347.0144,
+      "AssassinationPower": 1041.0432,
+      "CritDamageBonus": 0.404535,
+      "CritChance": 0.084963,
+      "Weight": 2.0
+    },
+    {
+      "level": 71,
+      "AttackPower": 361.6668,
+      "AssassinationPower": 1085.0004,
+      "CritDamageBonus": 0.408341,
+      "CritChance": 0.08566,
+      "Weight": 2.0
+    },
+    {
+      "level": 72,
+      "AttackPower": 376.9379,
+      "AssassinationPower": 1130.8137,
+      "CritDamageBonus": 0.412121,
+      "CritChance": 0.086347,
+      "Weight": 2.0
+    },
+    {
+      "level": 73,
+      "AttackPower": 392.8538,
+      "AssassinationPower": 1178.5614,
+      "CritDamageBonus": 0.415873,
+      "CritChance": 0.087025,
+      "Weight": 2.0
+    },
+    {
+      "level": 74,
+      "AttackPower": 409.4417,
+      "AssassinationPower": 1228.3251,
+      "CritDamageBonus": 0.419598,
+      "CritChance": 0.087693,
+      "Weight": 2.0
+    },
+    {
+      "level": 75,
+      "AttackPower": 426.73,
+      "AssassinationPower": 1280.19,
+      "CritDamageBonus": 0.423295,
+      "CritChance": 0.08835,
+      "Weight": 2.0
+    },
+    {
+      "level": 76,
+      "AttackPower": 444.7483,
+      "AssassinationPower": 1334.2449,
+      "CritDamageBonus": 0.426962,
+      "CritChance": 0.088997,
+      "Weight": 2.0
+    },
+    {
+      "level": 77,
+      "AttackPower": 463.5274,
+      "AssassinationPower": 1390.5822,
+      "CritDamageBonus": 0.430598,
+      "CritChance": 0.089634,
+      "Weight": 2.0
+    },
+    {
+      "level": 78,
+      "AttackPower": 483.0994,
+      "AssassinationPower": 1449.2982,
+      "CritDamageBonus": 0.434203,
+      "CritChance": 0.090259,
+      "Weight": 2.0
+    },
+    {
+      "level": 79,
+      "AttackPower": 503.4979,
+      "AssassinationPower": 1510.4937,
+      "CritDamageBonus": 0.437776,
+      "CritChance": 0.090873,
+      "Weight": 2.0
+    },
+    {
+      "level": 80,
+      "AttackPower": 524.7576,
+      "AssassinationPower": 1574.2728,
+      "CritDamageBonus": 0.441314,
+      "CritChance": 0.091476,
+      "Weight": 2.0
+    },
+    {
+      "level": 81,
+      "AttackPower": 546.9151,
+      "AssassinationPower": 1640.7453,
+      "CritDamageBonus": 0.444817,
+      "CritChance": 0.092067,
+      "Weight": 2.0
+    },
+    {
+      "level": 82,
+      "AttackPower": 570.0081,
+      "AssassinationPower": 1710.0243,
+      "CritDamageBonus": 0.448284,
+      "CritChance": 0.092645,
+      "Weight": 2.0
+    },
+    {
+      "level": 83,
+      "AttackPower": 594.0762,
+      "AssassinationPower": 1782.2286,
+      "CritDamageBonus": 0.451712,
+      "CritChance": 0.093211,
+      "Weight": 2.0
+    },
+    {
+      "level": 84,
+      "AttackPower": 619.1605,
+      "AssassinationPower": 1857.4815,
+      "CritDamageBonus": 0.4551,
+      "CritChance": 0.093763,
+      "Weight": 2.0
+    },
+    {
+      "level": 85,
+      "AttackPower": 645.304,
+      "AssassinationPower": 1935.912,
+      "CritDamageBonus": 0.458447,
+      "CritChance": 0.094302,
+      "Weight": 2.0
+    },
+    {
+      "level": 86,
+      "AttackPower": 672.5515,
+      "AssassinationPower": 2017.6545,
+      "CritDamageBonus": 0.461748,
+      "CritChance": 0.094827,
+      "Weight": 2.0
+    },
+    {
+      "level": 87,
+      "AttackPower": 700.9494,
+      "AssassinationPower": 2102.8482,
+      "CritDamageBonus": 0.465003,
+      "CritChance": 0.095336,
+      "Weight": 2.0
+    },
+    {
+      "level": 88,
+      "AttackPower": 730.5463,
+      "AssassinationPower": 2191.6389,
+      "CritDamageBonus": 0.468208,
+      "CritChance": 0.095831,
+      "Weight": 2.0
+    },
+    {
+      "level": 89,
+      "AttackPower": 761.393,
+      "AssassinationPower": 2284.179,
+      "CritDamageBonus": 0.47136,
+      "CritChance": 0.096309,
+      "Weight": 2.0
+    },
+    {
+      "level": 90,
+      "AttackPower": 793.5422,
+      "AssassinationPower": 2380.6266,
+      "CritDamageBonus": 0.474455,
+      "CritChance": 0.09677,
+      "Weight": 2.0
+    },
+    {
+      "level": 91,
+      "AttackPower": 827.0488,
+      "AssassinationPower": 2481.1464,
+      "CritDamageBonus": 0.477489,
+      "CritChance": 0.097213,
+      "Weight": 2.0
+    },
+    {
+      "level": 92,
+      "AttackPower": 861.9702,
+      "AssassinationPower": 2585.9106,
+      "CritDamageBonus": 0.480456,
+      "CritChance": 0.097637,
+      "Weight": 2.0
+    },
+    {
+      "level": 93,
+      "AttackPower": 898.3662,
+      "AssassinationPower": 2695.0986,
+      "CritDamageBonus": 0.48335,
+      "CritChance": 0.09804,
+      "Weight": 2.0
+    },
+    {
+      "level": 94,
+      "AttackPower": 936.2989,
+      "AssassinationPower": 2808.8967,
+      "CritDamageBonus": 0.486162,
+      "CritChance": 0.09842,
+      "Weight": 2.0
+    },
+    {
+      "level": 95,
+      "AttackPower": 975.8333,
+      "AssassinationPower": 2927.4999,
+      "CritDamageBonus": 0.488881,
+      "CritChance": 0.098776,
+      "Weight": 2.0
+    },
+    {
+      "level": 96,
+      "AttackPower": 1017.037,
+      "AssassinationPower": 3051.111,
+      "CritDamageBonus": 0.491493,
+      "CritChance": 0.099104,
+      "Weight": 2.0
+    },
+    {
+      "level": 97,
+      "AttackPower": 1059.9805,
+      "AssassinationPower": 3179.9415,
+      "CritDamageBonus": 0.493977,
+      "CritChance": 0.099401,
+      "Weight": 2.0
+    },
+    {
+      "level": 98,
+      "AttackPower": 1104.7373,
+      "AssassinationPower": 3314.2119,
+      "CritDamageBonus": 0.496297,
+      "CritChance": 0.099661,
+      "Weight": 2.0
+    },
+    {
+      "level": 99,
+      "AttackPower": 1151.3838,
+      "AssassinationPower": 3454.1514,
+      "CritDamageBonus": 0.498388,
+      "CritChance": 0.099871,
+      "Weight": 2.0
+    },
+    {
+      "level": 100,
+      "AttackPower": 1200.0,
+      "AssassinationPower": 3600.0,
+      "CritDamageBonus": 0.5,
+      "CritChance": 0.1,
+      "Weight": 2.0
+    }
+  ]
+}

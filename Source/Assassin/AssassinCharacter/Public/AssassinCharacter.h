@@ -5,6 +5,7 @@
 #include "AbilitySystemInterface.h"
 #include "AssassinCharacter.generated.h"
 
+class AAssassinWeaponBase;
 class UAbilitySystemComponent;
 class UAssassinAttributeSet;
 class UGameplayAbility;
@@ -24,6 +25,19 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "Abilities")
 	bool HasAbility(TSubclassOf<UGameplayAbility> AbilityClass) const;
+
+	/** Weapon actor references, assigned after spawning or from a placed instance. */
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Equipment|Weapons", meta = (DisplayName = "手持武器"))
+	TObjectPtr<AAssassinWeaponBase> HandheldWeapon = nullptr;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Equipment|Weapons", meta = (DisplayName = "盾牌"))
+	TObjectPtr<AAssassinWeaponBase> ShieldWeapon = nullptr;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Equipment|Weapons", meta = (DisplayName = "弓箭"))
+	TObjectPtr<AAssassinWeaponBase> BowWeapon = nullptr;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Equipment|Weapons", meta = (DisplayName = "袖箭"))
+	TObjectPtr<AAssassinWeaponBase> HiddenBladeWeapon = nullptr;
 
 protected:
 	virtual void BeginPlay() override;

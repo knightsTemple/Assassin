@@ -44,3 +44,24 @@ bool AAssassinWeaponBase::IsShieldWeapon() const
 {
 	return false;
 }
+
+FAssassinWeaponStats AAssassinWeaponBase::GetStatsAtLevel_Implementation(int32 Level) const
+{
+    return BaseStats;
+}
+
+FAssassinWeaponStats AAssassinWeaponBase::GetCurrentStats_Implementation() const
+{
+    return GetStatsAtLevel(WeaponLevel);
+}
+
+bool AAssassinWeaponBase::SetWeaponLevel_Implementation(int32 NewLevel)
+{
+    UE_LOG(LogTemp, Warning, TEXT("Weapon Lua binding unavailable: %s"), *GetName());
+    return false;
+}
+
+bool AAssassinWeaponBase::RefreshEquipmentStats_Implementation()
+{
+    return false;
+}

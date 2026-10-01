@@ -62,6 +62,11 @@
 // AnimGraph authoring (editor-only AnimGraph module)
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimSequence.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/Skeleton.h"
+#include "AnimGraphNode_SaveCachedPose.h"
+#include "AnimGraphNode_UseCachedPose.h"
+#include "AnimGraphNode_Slot.h"
 #include "AnimGraphNode_StateMachine.h"
 #include "AnimGraphNode_SequencePlayer.h"
 #include "AnimGraphNode_Root.h"
@@ -359,7 +364,116 @@ static UEdGraphNode* CreateBPNodeFromJson(UEdGraph* Graph, UBlueprint* Blueprint
 
     UEdGraphNode* NewNode = nullptr;
 
-    if (NodeType == TEXT("CallFunction"))
+
+    if (NodeType == TEXT("AnimGraphNode"))
+    {
+        // Editor Python cannot allocate AnimGraph pins or access montage slot tracks.
+        // Keep this bridge limited to the four nodes needed for a cached bone layer.
+        FString ClassPath;
+        NodeJson->TryGetStringField(TEXT("class_path"), ClassPath);
+        const TSet<FString> AllowedClasses = {
+            TEXT("/Script/AnimGraph.AnimGraphNode_SaveCachedPose"),
+            TEXT("/Script/AnimGraph.AnimGraphNode_UseCachedPose"),
+            TEXT("/Script/AnimGraph.AnimGraphNode_Slot"),
+            TEXT("/Script/AnimGraph.AnimGraphNode_LayeredBoneBlend")
+        };
+        UClass* NodeClass = AllowedClasses.Contains(ClassPath)
+            ? LoadClass<UEdGraphNode>(nullptr, *ClassPath) : nullptr;
+        if (!Cast<UAnimBlueprint>(Blueprint) || !NodeClass)
+        {
+            OutError = TEXT("AnimGraphNode requires an AnimBlueprint and a supported class_path.");
+            return nullptr;
+        }
+
+        FString ExistingName;
+        NodeJson->TryGetStringField(TEXT("existing_node"), ExistingName);
+        NewNode = ExistingName.IsEmpty() ? nullptr : FindBPNodeByName(Graph, ExistingName);
+        if (!ExistingName.IsEmpty() && (!NewNode || NewNode->GetClass() != NodeClass))
+        {
+            OutError = TEXT("existing_node is missing or has a different class.");
+            return nullptr;
+        }
+        const bool bNewNode = NewNode == nullptr;
+        if (bNewNode)
+        {
+            NewNode = NewObject<UEdGraphNode>(Graph, NodeClass, NAME_None, RF_Transactional);
+            NewNode->CreateNewGuid();
+        }
+        NewNode->Modify();
+
+        if (NodeJson->HasField(TEXT("properties")))
+        {
+            for (const auto& Pair : NodeJson->GetObjectField(TEXT("properties"))->Values)
+            {
+                FString Value;
+                FProperty* Property = NewNode->GetClass()->FindPropertyByName(FName(*Pair.Key));
+                if (!Property || !Pair.Value->TryGetString(Value) ||
+                    !Property->ImportText_Direct(*Value,
+                        Property->ContainerPtrToValuePtr<void>(NewNode), NewNode, PPF_None))
+                {
+                    OutError = FString::Printf(TEXT("Invalid AnimGraph property '%s'."), *Pair.Key);
+                    return nullptr;
+                }
+            }
+        }
+        FString CacheNodeName;
+        if (NodeJson->TryGetStringField(TEXT("cache_node"), CacheNodeName))
+        {
+            auto* UseNode = Cast<UAnimGraphNode_UseCachedPose>(NewNode);
+            auto* SaveNode = Cast<UAnimGraphNode_SaveCachedPose>(FindBPNodeByName(Graph, CacheNodeName));
+            if (!UseNode || !SaveNode)
+            {
+                OutError = TEXT("cache_node must reference a SaveCachedPose node.");
+                return nullptr;
+            }
+            UseNode->SaveCachedPoseNode = SaveNode;
+        }
+        if (NodeJson->HasField(TEXT("montage_paths")))
+        {
+            auto* SlotNode = Cast<UAnimGraphNode_Slot>(NewNode);
+            auto* AnimBP = Cast<UAnimBlueprint>(Blueprint);
+            if (!SlotNode || !AnimBP->TargetSkeleton)
+            {
+                OutError = TEXT("montage_paths requires a Slot node and a target skeleton.");
+                return nullptr;
+            }
+            TArray<UAnimMontage*> Montages;
+            for (const auto& PathValue : NodeJson->GetArrayField(TEXT("montage_paths")))
+            {
+                auto* Montage = LoadObject<UAnimMontage>(nullptr, *PathValue->AsString());
+                if (!Montage || Montage->GetSkeleton() != AnimBP->TargetSkeleton ||
+                    Montage->SlotAnimTracks.Num() != 1)
+                {
+                    OutError = TEXT("Expected compatible single-slot montages.");
+                    return nullptr;
+                }
+                Montages.Add(Montage);
+            }
+            AnimBP->TargetSkeleton->Modify();
+            AnimBP->TargetSkeleton->SetSlotGroupName(SlotNode->Node.SlotName, FName(TEXT("DefaultGroup")));
+            for (UAnimMontage* Montage : Montages)
+            {
+                Montage->Modify();
+                Montage->SlotAnimTracks[0].SlotName = SlotNode->Node.SlotName;
+                Montage->MarkPackageDirty();
+            }
+            AnimBP->TargetSkeleton->MarkPackageDirty();
+        }
+        NewNode->NodePosX = PosX;
+        NewNode->NodePosY = PosY;
+        if (bNewNode)
+        {
+            Graph->AddNode(NewNode, false, false);
+            NewNode->PostPlacedNewNode();
+            NewNode->AllocateDefaultPins();
+        }
+        else
+        {
+            NewNode->ReconstructNode();
+        }
+        FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+    }
+    else if (NodeType == TEXT("CallFunction"))
     {
         FString TargetClass, FunctionName;
         if (!NodeJson->TryGetStringField(TEXT("function_name"), FunctionName))
@@ -766,21 +880,17 @@ FString UMCPythonHelper::ConnectBlueprintPins(UBlueprint* Blueprint, const FStri
         return MakeJsonError(FString::Printf(TEXT("Cannot connect pins with same direction (%s)."),
             SourcePin->Direction == EGPD_Input ? TEXT("both Input") : TEXT("both Output")));
 
-    // Check if connection is allowed by the schema and handle BREAK_OTHERS
+    // Let the schema handle all BREAK_OTHERS variants and graph notifications.
     const UEdGraphSchema* Schema = Graph->GetSchema();
     if (Schema)
     {
-        FPinConnectionResponse Response = Schema->CanCreateConnection(SourcePin, TargetPin);
-        if (Response.Response == CONNECT_RESPONSE_DISALLOW)
-            return MakeJsonError(FString::Printf(TEXT("Connection not allowed: %s"), *Response.Message.ToString()));
-        // Break existing connections when schema requires it (e.g. exec output already connected)
-        if (Response.Response == CONNECT_RESPONSE_BREAK_OTHERS_A)
-            SourcePin->BreakAllPinLinks();
-        else if (Response.Response == CONNECT_RESPONSE_BREAK_OTHERS_B)
-            TargetPin->BreakAllPinLinks();
+        if (!Schema->TryCreateConnection(SourcePin, TargetPin))
+            return MakeJsonError(TEXT("The graph schema rejected the pin connection."));
     }
-
-    SourcePin->MakeLinkTo(TargetPin);
+    else
+    {
+        SourcePin->MakeLinkTo(TargetPin);
+    }
 
     FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
     return MakeJsonSuccess(FString::Printf(TEXT("Connected %s.%s -> %s.%s"),

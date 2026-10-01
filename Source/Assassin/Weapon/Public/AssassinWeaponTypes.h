@@ -3,6 +3,8 @@
 #include "CoreMinimal.h"
 #include "AssassinWeaponTypes.generated.h"
 
+class UCurveFloat;
+
 UENUM(BlueprintType)
 enum class EAssassinWeaponType : uint8
 {
@@ -35,4 +37,27 @@ struct ASSASSIN_API FAssassinWeaponStats
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = "0", DisplayName = "重量"))
 	float Weight = 0.0f;
+};
+
+
+/** X = weapon level; Y = final equipment bonus. Unassigned curves use BaseStats. */
+USTRUCT(BlueprintType)
+struct ASSASSIN_API FAssassinWeaponStatCurves
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (DisplayName = "攻击力成长曲线"))
+    TObjectPtr<UCurveFloat> AttackPower = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (DisplayName = "刺杀攻击力成长曲线"))
+    TObjectPtr<UCurveFloat> AssassinationPower = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (DisplayName = "暴击伤害加成曲线"))
+    TObjectPtr<UCurveFloat> CritDamageBonus = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (DisplayName = "暴击率加成曲线"))
+    TObjectPtr<UCurveFloat> CritChance = nullptr;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon", meta = (DisplayName = "重量曲线"))
+    TObjectPtr<UCurveFloat> Weight = nullptr;
 };

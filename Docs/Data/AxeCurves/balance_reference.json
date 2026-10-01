@@ -1,0 +1,16 @@
+{
+  "reference_game": "Assassins Creed Odyssey",
+  "source": "https://primagames.com/eguides/assassins-creed-osyssey-eguide/reference/gear",
+  "source_observation": "Swords are fast and versatile; heavy bladed weapons are slower and powerful with sweeping attacks.",
+  "design_status": "Project tuning, not original Ubisoft numbers. Ratios and weight are our design choices.",
+  "role": "Melee-focused axe; sword retains higher assassination bonus and critical chance.",
+  "formulas": {
+    "t": "(clamp(level,1,100)-1)/99",
+    "AttackPower": "30*60^t",
+    "AssassinationPower": "30*60^t",
+    "CritDamageBonus": "0.15+0.60*(1-(1-t)^1.2)",
+    "CritChance": "0.01+0.04*(1-(1-t)^1.4)",
+    "Weight": "4"
+  },
+  "limitations": "Equipment attribute contributions, not DPS or final hit damage. Weight does not implement attack-speed slowdown. Animation timing and enemy defenses require later combat balancing."
+}
