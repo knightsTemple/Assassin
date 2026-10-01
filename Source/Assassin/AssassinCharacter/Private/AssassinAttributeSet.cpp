@@ -23,7 +23,8 @@ void UAssassinAttributeSet::PreAttributeChange(const FGameplayAttribute& Attribu
 		|| Attribute == GetDefenseAttribute()
 		|| Attribute == GetCritChanceAttribute()
 		|| Attribute == GetCritDamageBonusAttribute()
-		|| Attribute == GetMoveSpeedAttribute())
+		|| Attribute == GetMoveSpeedAttribute()
+		|| Attribute == GetWeightAttribute())
 	{
 		NewValue = FMath::Max(NewValue, 0.0f);
 	}
@@ -60,6 +61,7 @@ void UAssassinAttributeSet::ClampCurrentAttributes()
 	SetDefense(FMath::Max(GetDefense(), 0.0f));
 	SetCritChance(FMath::Max(GetCritChance(), 0.0f));
 	SetCritDamageBonus(FMath::Max(GetCritDamageBonus(), 0.0f));
+	SetWeight(FMath::Max(GetWeight(), 0.0f));
 	SetMoveSpeed(FMath::Max(GetMoveSpeed(), 0.0f));
 
 	SetMaxAdrenaline(FMath::Max(GetMaxAdrenaline(), 0.0f));

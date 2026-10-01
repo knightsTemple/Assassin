@@ -63,6 +63,11 @@ public:
 	FGameplayAttributeData MoveSpeed;
 	ATTRIBUTE_ACCESSORS(UAssassinAttributeSet, MoveSpeed)
 
+	/** 当前装备总重量；暂不自动换算为移速或攻击速度。 */
+	UPROPERTY(BlueprintReadOnly, Category = "Attributes|Equipment")
+	FGameplayAttributeData Weight;
+	ATTRIBUTE_ACCESSORS(UAssassinAttributeSet, Weight)
+
 	/** 当前技能能量（肾上腺素格）。 */
 	UPROPERTY(BlueprintReadOnly, Category = "Attributes|Adrenaline")
 	FGameplayAttributeData Adrenaline;
