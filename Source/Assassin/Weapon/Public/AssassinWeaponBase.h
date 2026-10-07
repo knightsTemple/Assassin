@@ -70,12 +70,12 @@ public:
     FAssassinWeaponStats GetCurrentStats() const;
     virtual FAssassinWeaponStats GetCurrentStats_Implementation() const;
 
-    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintAuthorityOnly, Category = "Weapon|Progression")
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Progression")
     bool SetWeaponLevel(int32 NewLevel);
     virtual bool SetWeaponLevel_Implementation(int32 NewLevel);
 
     /** Re-read curves/BaseStats and update only this weapon's existing equipment GE. */
-    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintAuthorityOnly, Category = "Weapon|Stats")
+    UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Weapon|Stats")
     bool RefreshEquipmentStats();
     virtual bool RefreshEquipmentStats_Implementation();
 

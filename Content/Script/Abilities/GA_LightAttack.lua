@@ -1,5 +1,5 @@
 local WeaponBase = require("Weapon.WeaponBase")
-local AttackEnums = require("Combat.AttackPhase")
+local AttackEnums = require("Combat.attack.AttackPhase")
 local AttackPhase = AttackEnums.AttackPhase
 local AttackType = AttackEnums.AttackType
 

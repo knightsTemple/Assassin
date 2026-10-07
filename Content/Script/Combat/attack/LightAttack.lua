@@ -1,45 +1,27 @@
-local AttackPhase = require("Combat.AttackPhase").AttackPhase
+local AttackBase = require("Combat.attack.AttackBase")
+local AttackPhase = require("Combat.attack.AttackPhase").AttackPhase
 
 -- 收剑等待的默认值和下限（秒）。
 local DefaultSwordSheatheDelay = 10.0
 
----@class LightAttack : AttackModule
+---@class LightAttack : AttackBase
 ---@field AttackSystem AttackSystem
 ---@field Phase AttackPhase
 ---@field ActiveWeapon? AssassinWeaponBase
 ---@field SwordActionPlayRate number
 ---@field SwordDrawReadyTime? number
 ---@field SwordSheatheDelay number
-local LightAttack = {}
+local LightAttack = setmetatable({}, { __index = AttackBase })
 LightAttack.__index = LightAttack
 
-local function IsValid(Object)
-    return Object ~= nil and UE.UKismetSystemLibrary.IsValid(Object)
-end
+local IsValid = AttackBase.IsValid
 
+-- 创建轻攻击模块，复用基类初始化，并设置连击、动画及收剑等待状态。
 ---@return LightAttack?
 function LightAttack.New(AttackSystem)
-    local Owner = AttackSystem.Owner
-    if not IsValid(Owner) then
-        return nil
-    end
-
-    local ASC = AttackSystem.ASC
-    if not IsValid(ASC) then
-        return nil
-    end
-
-    local LightAttackAbilityClass = UE.UClass.Load("/Game/AssassinGirl/GAS/Abilities/GA_LightAttack.GA_LightAttack_C")
-    if not LightAttackAbilityClass then
-        return nil
-    end
-
-    return setmetatable({
-        AttackSystem = AttackSystem,
-        Owner = Owner,
-        ASC = ASC,
-        LightAttackAbilityClass = LightAttackAbilityClass,
-        LightAttackAbilityHandle = nil,
+    local Self = AttackBase.New(AttackSystem, LightAttack)
+    if not Self then return nil end
+    local State = {
         LightAttackMontages = {},
         LightAttackTimings = {},
         ActiveWeapon = nil,
@@ -47,18 +29,23 @@ function LightAttack.New(AttackSystem)
         SwordSheatheMontage = nil,
         SwordActionPlayRate = 1.0,
         SwordDrawReadyTime = nil,
-        Phase = AttackPhase.Idle,
-        ActiveAbility = nil,
         PendingLightAttack = false,
         CanAcceptNextAttack = false, -- 连击窗口或收招后的持剑等待期内，可立即开始下一刀
         -- 攻击收招结束后延迟收剑；期间可移动、续招或重新从第一刀开始。
         SwordSheatheDelay = DefaultSwordSheatheDelay,
         ComboIndex = 0,
-        Destroyed = false,
-    }, LightAttack)
+    }
+    for Key, Value in pairs(State) do Self[Key] = Value end
+    return Self
 end
 
--- 每轮攻击读取当前手持武器，禁止回退到全局剑动画。
+-- 读取角色蓝图配置的轻攻击 GA 类，供基类初始化使用。
+function LightAttack:GetAbilityClass()
+    -- 在角色蓝图 Class Defaults 中配置 GameplayAbility 类引用。
+    return self.Owner.LightAttackAbilityClass
+end
+
+-- 读取当前手持武器的攻击、拔剑和收剑动画及时间配置；武器或攻击动画无效时返回 false。
 function LightAttack:LoadWeaponAnimations()
     ---@type AssassinWeaponBase?
     local Weapon = IsValid(self.Owner) and self.Owner.HandheldWeapon or nil
@@ -95,6 +82,7 @@ function LightAttack:LoadWeaponAnimations()
     return true
 end
 
+-- 检查本轮攻击使用的武器是否仍有效，并且仍由当前角色持有。
 function LightAttack:HasCurrentWeapon()
     local Weapon = self.ActiveWeapon
     return IsValid(self.Owner) and Weapon ~= nil and IsValid(Weapon)
@@ -102,29 +90,9 @@ function LightAttack:HasCurrentWeapon()
         and Weapon.EquippedCharacter == self.Owner
 end
 
-function LightAttack:GrantAbility()
-    if self.Destroyed or not IsValid(self.Owner) or not IsValid(self.ASC)
-        or not self.LightAttackAbilityClass then
-        return false
-    end
-
-    -- The PlayerState ASC may already own this ability after a pawn is replaced.
-    if self.Owner:HasAbility(self.LightAttackAbilityClass) then
-        return true
-    end
-
-    local Handle = self.ASC:K2_GiveAbility(self.LightAttackAbilityClass, 1)
-    if not self.Owner:HasAbility(self.LightAttackAbilityClass) then
-        print("LightAttack: failed to grant light attack")
-        return false
-    end
-
-    self.LightAttackAbilityHandle = Handle
-    return true
-end
-
+-- 处理轻攻击输入：首次输入激活 GA，攻击中缓存或衔接连击，末段收招后允许重新起手。
 function LightAttack:HandleInput()
-    if self.Destroyed or not IsValid(self.ASC) or not self.LightAttackAbilityClass then
+    if self.Destroyed or not IsValid(self.ASC) or not IsValid(self.AbilityClass) then
         return false
     end
 
@@ -156,10 +124,10 @@ function LightAttack:HandleInput()
         return true
     end
 
-    local Activated = self.ASC:TryActivateAbilityByClass(self.LightAttackAbilityClass)
-    return Activated
+    return AttackBase.HandleInput(self)
 end
 
+-- 校验技能和武器配置，通过基类取得攻击占用后进入拔剑阶段，并初始化本轮连击。
 function LightAttack:BeginAttack(Ability)
     if self.Destroyed or not IsValid(Ability) or IsValid(self.ActiveAbility) then
         return false
@@ -169,11 +137,10 @@ function LightAttack:BeginAttack(Ability)
         return false
     end
 
-    if not self.AttackSystem:TryBeginAttack(self) then
+    if not AttackBase.BeginAttack(self, Ability) then
         return false
     end
 
-    self.ActiveAbility = Ability          -- 从拔剑到收剑结束都使用同一个技能实例
     self.Phase = AttackPhase.Drawing
     self.ComboIndex = 1                   -- 拔剑完成后自动播放第一段，无需再按一次
     self.PendingLightAttack = false       -- 拔剑期间的额外点击可缓存为第二段输入
@@ -181,6 +148,7 @@ function LightAttack:BeginAttack(Ability)
     return true
 end
 
+-- 响应当前技能的拔剑就绪回调，切换到攻击阶段并播放当前连击段。
 function LightAttack:OnSwordDrawReady(Ability)
     if self.Destroyed or self.ActiveAbility ~= Ability or self.Phase ~= AttackPhase.Drawing then
         return
@@ -189,6 +157,7 @@ function LightAttack:OnSwordDrawReady(Ability)
     Ability:PlayCurrentAttack()
 end
 
+-- 从攻击阶段进入收剑阶段，清除连击输入并通知当前技能播放收剑动画。
 function LightAttack:BeginSwordSheathe(Ability)
     if self.Destroyed or self.ActiveAbility ~= Ability or self.Phase ~= AttackPhase.Attacking then
         return
@@ -199,15 +168,18 @@ function LightAttack:BeginSwordSheathe(Ability)
     Ability:PlaySwordSheathe()
 end
 
+-- 获取当前连击段的蒙太奇；本轮武器已失效或被替换时返回 nil。
 function LightAttack:GetCurrentAttackMontage()
     if not self:HasCurrentWeapon() then return nil end
     return self.LightAttackMontages and self.LightAttackMontages[self.ComboIndex]
 end
 
+-- 获取当前连击段的播放速度、起播时间、连击窗口和收招时间配置。
 function LightAttack:GetCurrentAttackTiming()
     return self.LightAttackTimings and self.LightAttackTimings[self.ComboIndex]
 end
 
+-- 响应连击窗口开启：允许衔接下一段，并立即消费已缓存的轻攻击输入。
 function LightAttack:OnLightAttackComboWindow(Ability)
     if self.Destroyed or self.ActiveAbility ~= Ability or self.Phase ~= AttackPhase.Attacking
         or self.ComboIndex >= #self.LightAttackMontages then
@@ -221,6 +193,7 @@ function LightAttack:OnLightAttackComboWindow(Ability)
     end
 end
 
+-- 响应收招完成：有缓存且存在下一段时继续连击，否则停止当前动作并等待输入或收剑超时。
 function LightAttack:OnLightAttackRecoveryReady(Ability)
     if self.Destroyed or self.ActiveAbility ~= Ability or self.Phase ~= AttackPhase.Attacking then
         return
@@ -235,6 +208,7 @@ function LightAttack:OnLightAttackRecoveryReady(Ability)
     end
 end
 
+-- 消费一次缓存输入，关闭当前连击窗口，推进段数并播放下一段攻击。
 function LightAttack:ContinueLightAttack()
     if self.Destroyed or self.Phase ~= AttackPhase.Attacking or not IsValid(self.ActiveAbility)
         or not self.PendingLightAttack or self.ComboIndex >= #self.LightAttackMontages then
@@ -247,13 +221,12 @@ function LightAttack:ContinueLightAttack()
     self.ActiveAbility:PlayCurrentAttack()
 end
 
+-- 响应当前技能结束，通过基类释放攻击占用，并清空连击状态及本轮武器动画缓存。
 function LightAttack:OnAttackEnded(Ability)
-    if self.ActiveAbility ~= Ability then
+    if not AttackBase.OnAttackEnded(self, Ability) then
         return
     end
 
-    self.ActiveAbility = nil
-    self.Phase = AttackPhase.Idle
     self.PendingLightAttack = false
     self.CanAcceptNextAttack = false
     self:ResetCombo()
@@ -262,32 +235,26 @@ function LightAttack:OnAttackEnded(Ability)
     self.LightAttackTimings = {}
     self.SwordDrawMontage = nil
     self.SwordSheatheMontage = nil
-    self.AttackSystem:EndAttack(self)
 end
 
+-- 将连击段数归零，表示当前没有进行中的连击段。
 function LightAttack:ResetCombo()
     self.ComboIndex = 0
 end
 
-function LightAttack:Destroy()
-    if self.Destroyed then
-        return
-    end
-    self.Destroyed = true
+-- 通过轻攻击 GA 的结束接口取消活动技能，触发其任务和攻击状态清理。
+function LightAttack:CancelActiveAbility()
     if IsValid(self.ActiveAbility) then
         self.ActiveAbility:FinishLightAttack(true)
     end
+end
 
-    self.ActiveAbility = nil
-    self.Phase = AttackPhase.Idle
+-- 销毁模块：由基类取消活动技能并释放公共引用，再清理轻攻击专属状态；可重复调用。
+function LightAttack:Destroy()
+    if self.Destroyed then return end
+    AttackBase.Destroy(self)
     self.PendingLightAttack = false
     self.CanAcceptNextAttack = false
-    self.AttackSystem:EndAttack(self)
-    self.AttackSystem = nil
-    self.Owner = nil
-    self.ASC = nil
-    self.LightAttackAbilityClass = nil
-    self.LightAttackAbilityHandle = nil
     self.ActiveWeapon = nil
     self.LightAttackTimings = nil
     self.LightAttackMontages = nil

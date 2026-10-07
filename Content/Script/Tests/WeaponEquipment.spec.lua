@@ -8,16 +8,35 @@ UE = {
     end },
     EAssassinWeaponType = { Sword = 0, LongBlade = 1, Bow = 2, Shield = 3, Axe = 4 },
 }
+local EffectClass = { GetDefaultObject = function() return { StackingType = 0, DurationPolicy = 1 } end }
+UE.EGameplayEffectStackingType = { None = 0 }
+UE.EGameplayEffectDurationType = { Infinite = 1, HasDuration = 2 }
+UE.UAssassinWeaponGASLibrary = {
+    MakeWeaponEffectContext = function(_, Weapon) return Weapon end,
+    IsSpecValid = function(Spec) return Spec ~= nil end,
+    IsEffectHandleValid = function(Handle) return Handle ~= nil end,
+    GetEquipmentDataTag = function(Tag) return Tag end,
+}
+local ASC = {}
+function ASC:MakeOutgoingSpec(Class, Level, Context) return { Class = Class, Values = {} } end
+function ASC:BP_ApplyGameplayEffectSpecToSelf(Spec) return { Spec = Spec, Active = true } end
+function ASC:RemoveActiveGameplayEffect(Handle) Handle.Active = false end
+UE.UAbilitySystemBlueprintLibrary = {
+    GetAbilitySystemComponent = function() return ASC end,
+    AssignTagSetByCallerMagnitude = function(Spec, Tag, Value) Spec.Values[Tag] = Value; return Spec end,
+}
 local Equipment = require("Weapon.WeaponEquipment")
 local function Fixture()
-    local Owner = { Effects = 0, Authority = true }
-    function Owner:HasAuthority() return self.Authority end
+    local Owner = { Effects = 0 }
     return Owner, assert(Equipment.New(Owner))
 end
 local function Weapon(Type)
-    local W = { WeaponType = Type or 0, Equips = 0 }
+    local W = { WeaponType = Type or 0, Equips = 0,
+        EquipmentStatsEffectClass = EffectClass, EffectLevel = 1,
+        AdditionalEffects = { Num = function() return 0 end }, }
+    function W:MakeBaseStatsValues() return { AttackPower = 10 } end
     function W:IsA(Class) return Class == BaseClass end
-    function W:EquipToCharacter(Owner)
+    function W:AttachForEquipment(Owner)
         if self.FailEquip then return false end
         if self.EquippedCharacter then return self.EquippedCharacter == Owner end
         self.EquippedCharacter = Owner
@@ -26,7 +45,7 @@ local function Weapon(Type)
         if self.OnEquip then self.OnEquip() end
         return true
     end
-    function W:UnequipFromCharacter()
+    function W:DetachForEquipment()
         if self.FailUnequip then return false end
         if self.EquippedCharacter then
             self.EquippedCharacter.Effects = self.EquippedCharacter.Effects - 1
@@ -65,9 +84,9 @@ assert(not OtherSystem:Equip(Axe) and Other.Effects == 0)
 assert(not System:Equip(nil))
 ---@diagnostic disable-next-line: param-type-mismatch
 assert(not System:Unequip("BadSlot"))
-Owner.Authority = false
+Owner.Invalid = true
 assert(not System:Unequip("HandheldWeapon") and Owner.Effects == 4)
-Owner.Authority = true
+Owner.Invalid = nil
 assert(System:Unequip("BowWeapon") and Owner.Effects == 3)
 assert(System:Unequip("BowWeapon") and Owner.Effects == 3)
 
@@ -99,18 +118,17 @@ assert(RollSystem:Equip(Old))
 Old.FailEquip = true
 assert(not RollSystem:Equip(Broken))
 assert(RollOwner.HandheldWeapon == nil and RollOwner.Effects == 0)
-print("PASS: equip, idempotence, swap, rollback, slots, ownership, authority, reentry, cleanup")
+print("PASS: equip, idempotence, swap, rollback, slots, ownership, invalid owner, reentry, cleanup")
 
 -- 验证角色入口和生命周期接入。
 UnLua = { Class = function(SuperModule) return {} end }
-package.loaded["Combat.AttackSystem"] = { New = function() return {
+package.loaded["Combat.attack.AttackSystem"] = { New = function() return {
     GrantAbilities = function() end, Destroy = function() end,
 } end }
 package.loaded["UnLua.EnhancedInput"] = { BindAction = function() end }
-UE.UAbilitySystemBlueprintLibrary = { GetAbilitySystemComponent = function() return {} end }
+
 local Character = require("Character.BP_AssassinGirl")
 local Girl = setmetatable({ Overridden = { ReceiveEndPlay = function() end }, Effects = 0 }, { __index = Character })
-function Girl:HasAuthority() return true end
 function Girl:GetAssassinAttributeSet() return {} end
 assert(not Girl:EquipWeapon(Weapon(0)))
 Girl:OnGASInitialized()

@@ -5,7 +5,12 @@ local function Array(Items)
     return Items
 end
 UE = { UKismetSystemLibrary = { IsValid = function(O) return O ~= nil and not O.Invalid end },
-    USkeletalMeshComponent = {}, AActor = {}, TArray = function() return Array() end }
+    USkeletalMeshComponent = {}, AActor = {},
+    -- 与 UnLua 的构造调用保持一致，避免语言服务将 TArray 推断为无参数函数。
+    TArray = function(ElementType)
+        assert(ElementType == UE.AActor, "Child actor array must use the actor element type")
+        return Array()
+    end }
 local Collision = require("Weapon.BackClothCollision")
 local Added, Removed = 0, 0
 local function Target()

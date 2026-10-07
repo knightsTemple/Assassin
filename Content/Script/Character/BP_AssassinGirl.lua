@@ -7,8 +7,8 @@
 --
 
 ---@class BP_AssassinGirl_C
----@field HasAuthority fun(self: BP_AssassinGirl_C): boolean
 ---@field AttackSystem? AttackSystem
+---@field LightAttackAbilityClass any 蓝图配置的 GameplayAbility 类引用
 ---@field WeaponEquipment? WeaponEquipment
 ---@field DefaultHandheldWeapon? any
 ---@field HandheldWeapon? AssassinWeaponBase
@@ -18,7 +18,7 @@
 ---@field GetAssassinAttributeSet fun(self: BP_AssassinGirl_C): any
 ---@field Overridden any
 local M = UnLua.Class()
-local AttackSystem = require("Combat.AttackSystem")
+local AttackSystem = require("Combat.attack.AttackSystem")
 local WeaponEquipment = require("Weapon.WeaponEquipment")
 local BackClothCollision = require("Weapon.BackClothCollision")
 local EnhancedInput = require("UnLua.EnhancedInput")

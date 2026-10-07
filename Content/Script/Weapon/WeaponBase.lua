@@ -36,10 +36,10 @@
 ---@field WeaponDrawReadyTime? number
 ---@field WeaponSheatheDelay? number
 ---@field EquippedCharacter any
+---@field _EquipmentManager? WeaponEquipment 装备生命周期由该管理器持有
 ---@field Overridden { ReceiveEndPlay: fun(self: AssassinWeaponBase, EndPlayReason: any) }
 ---@field IsShieldWeapon fun(self: AssassinWeaponBase): boolean
 ---@field GetMaxHealthBonus fun(self: AssassinWeaponBase): number
----@field HasAuthority fun(self: AssassinWeaponBase): boolean
 ---@field GetName fun(self: AssassinWeaponBase): string
 ---@field K2_DetachFromActor fun(self: AssassinWeaponBase, LocationRule: any, RotationRule: any, ScaleRule: any)
 ---@field K2_AttachToComponent fun(self: AssassinWeaponBase, Parent: any, SocketName: any, LocationRule: any, RotationRule: any, ScaleRule: any, WeldSimulatedBodies: boolean): boolean
@@ -49,10 +49,12 @@
 local M = UnLua.Class()
 local BackClothCollision = require("Weapon.BackClothCollision")
 
+-- 检查对象是否存在且仍是有效的 UE 对象。
 local function IsValid(Object)
     return Object ~= nil and UE.UKismetSystemLibrary.IsValid(Object)
 end
 
+-- 将数值限制为非负有限数；非数字、NaN 和无穷值统一按零处理。
 local function NonNegative(Value)
     if type(Value) ~= "number" or Value ~= Value or Value == math.huge or Value == -math.huge then
         return 0.0
@@ -61,12 +63,14 @@ local function NonNegative(Value)
 end
 
 
-local StatNames = { "AttackPower", "AssassinationPower", "CritDamageBonus", "CritChance", "Weight" }
+local StatNames = { "AttackPower", "AssassinationPower", "CritDamageBonus", "CritChance", "Weight" } --攻击力，刺杀攻击力，暴击伤害加成，暴击率，重量（加成）
 
+-- 将等级向下取整并限制在 1～100 范围内，无效输入按等级 1 处理。
 local function NormalizeLevel(Level)
     return math.max(1, math.min(100, math.floor(NonNegative(Level))))
 end
 
+-- 计算指定等级的武器属性：优先读取成长曲线，否则使用基础值，并限制暴击率不超过 1。
 function M:GetStatsAtLevel(Level)
     local Stats = UE.FAssassinWeaponStats()
     Level = NormalizeLevel(Level)
@@ -79,10 +83,12 @@ function M:GetStatsAtLevel(Level)
     return Stats
 end
 
+-- 根据当前武器等级计算并返回武器属性。
 function M:GetCurrentStats()
     return self:GetStatsAtLevel(self.WeaponLevel)
 end
 
+-- 将当前武器属性和最大生命值加成整理为数值表，供装备 GE 的 SetByCaller 参数使用。
 function M:MakeBaseStatsValues()
     local Stats = self:GetCurrentStats()
     local Values = {}
@@ -93,33 +99,17 @@ function M:MakeBaseStatsValues()
     return Values
 end
 
+-- 通知装备管理器刷新角色加成；未装备时无需更新 GE。
 function M:RefreshEquipmentStats()
-    if self._ChangingEquipment or not self:HasAuthority() then
-        return false
-    end
-    if not IsValid(self.EquippedCharacter) then
-        return true
-    end
-    local ASC = self._EquipmentASC
-    local Handle = self._BaseStatsEffectHandle
-    if not IsValid(ASC) or not Handle
-        or UE.UAbilitySystemBlueprintLibrary.GetActiveGameplayEffectStackCount(Handle) == 0 then
-        return false
-    end
-
-    -- Update the existing GE in place: no duplicate bonuses or reset of additional effects.
-    local Values = UE.TMap(UE.FGameplayTag, UE.float)
-    for Name, Value in pairs(self:MakeBaseStatsValues()) do
-        Values:Add(UE.UAssassinWeaponGASLibrary.GetEquipmentDataTag("Assassin.Data.Equipment." .. Name), Value)
-    end
-    self._ChangingEquipment = true
-    ASC:UpdateActiveGameplayEffectSetByCallerMagnitudes(Handle, Values)
-    self._ChangingEquipment = false
-    return true
+    if self._ChangingEquipment then return false end
+    local Equipment = self._EquipmentManager
+    if Equipment then return Equipment:RefreshWeaponStats(self) end
+    return not IsValid(self.EquippedCharacter)
 end
 
+-- 设置合法等级并刷新装备属性；刷新失败时恢复原等级。
 function M:SetWeaponLevel(NewLevel)
-    if self._ChangingEquipment or not self:HasAuthority() then
+    if self._ChangingEquipment or (self._EquipmentManager and self._EquipmentManager.Busy) then
         return false
     end
     local OldLevel = self.WeaponLevel
@@ -131,35 +121,8 @@ function M:SetWeaponLevel(NewLevel)
     return true
 end
 
-local function SupportsEquipmentEffect(EffectClass, MustBeInfinite)
-    if not IsValid(EffectClass) then
-        return false
-    end
-    local Defaults = EffectClass:GetDefaultObject()
-    if not IsValid(Defaults) or Defaults.StackingType ~= UE.EGameplayEffectStackingType.None then
-        return false
-    end
-    local Policy = Defaults.DurationPolicy
-    if MustBeInfinite then
-        return Policy == UE.EGameplayEffectDurationType.Infinite
-    end
-    -- Instant effects have no removable active handle and cannot represent equipment buffs.
-    return Policy == UE.EGameplayEffectDurationType.Infinite
-        or Policy == UE.EGameplayEffectDurationType.HasDuration
-end
-
-local function RemoveEffects(ASC, Handles)
-    if IsValid(ASC) then
-        for _, Handle in ipairs(Handles or {}) do
-            ASC:RemoveActiveGameplayEffect(Handle, -1)
-        end
-    end
-end
-
+-- 初始化武器状态并规范等级；盾牌额外初始化为满耐久。
 function M:ReceiveBeginPlay()
-    self._EquipmentASC = nil
-    self._EquipmentHandles = {}
-    self._BaseStatsEffectHandle = nil
     self.WeaponLevel = NormalizeLevel(self.WeaponLevel)
     self._ChangingEquipment = false
     self._AttachedByEquipment = false
@@ -169,151 +132,66 @@ function M:ReceiveBeginPlay()
     end
 end
 
-function M:MakeEquipmentSpec(ASC, EffectClass)
-    local Library = UE.UAssassinWeaponGASLibrary
-    local Context = Library.MakeWeaponEffectContext(ASC, self)
-    local Spec = ASC:MakeOutgoingSpec(EffectClass, math.max(1.0, NonNegative(self.EffectLevel)), Context)
-    if not Library.IsSpecValid(Spec) then
-        return nil
-    end
-    return Spec
-end
-
-function M:MakeBaseStatsSpec(ASC)
-    local Spec = self:MakeEquipmentSpec(ASC, self.EquipmentStatsEffectClass)
-    if not Spec then
-        return nil
-    end
-    local Values = self:MakeBaseStatsValues()
-    for Name, Value in pairs(Values) do
-        local Tag = UE.UAssassinWeaponGASLibrary.GetEquipmentDataTag("Assassin.Data.Equipment." .. Name)
-        Spec = UE.UAbilitySystemBlueprintLibrary.AssignTagSetByCallerMagnitude(Spec, Tag, Value)
-    end
-    return Spec
-end
-
+-- 保留蓝图装备入口，统一交由角色装备管理器处理栏位和效果。
 function M:EquipToCharacter(Character)
-    if self._ChangingEquipment or not self:HasAuthority() or not IsValid(Character)
-        or not Character:HasAuthority() then
-        return false
+    if not IsValid(Character) or not Character.WeaponEquipment then return false end
+    for _, Slot in ipairs(Character.WeaponEquipment.Slots) do
+        if Character[Slot] == self then return Character.WeaponEquipment:Equip(self, Slot) end
     end
-    if IsValid(self.EquippedCharacter) then
-        -- Repeated calls must not apply another set of effects. Transfer requires unequipping first.
-        return self.EquippedCharacter == Character and IsValid(self._EquipmentASC)
-    end
-    local ASC = UE.UAbilitySystemBlueprintLibrary.GetAbilitySystemComponent(Character)
-    if not IsValid(ASC) or not SupportsEquipmentEffect(self.EquipmentStatsEffectClass, true) then
-        print("Weapon: missing ASC or invalid equipment stats GE", self:GetName())
-        return false
-    end
+    return Character.WeaponEquipment:Equip(self)
+end
 
-    local Effects = {}
-    for Index = 1, self.AdditionalEffects:Num() do
-        local EffectClass = self.AdditionalEffects:Get(Index)
-        if IsValid(EffectClass) then
-            if not SupportsEquipmentEffect(EffectClass, false) then
-                print("Weapon: additional GE must be persistent and use no stacking", self:GetName(), Index)
-                return false
-            end
-            table.insert(Effects, EffectClass)
-        end
-    end
+-- 保留蓝图卸装入口，统一经过装备管理器的状态检查。
+function M:UnequipFromCharacter()
+    local Equipment = self._EquipmentManager
+    if Equipment then return Equipment:UnequipWeaponFromSlot(self) end
+    return not IsValid(self.EquippedCharacter)
+end
 
+-- 仅供装备管理器调用：挂接模型并设置武器归属，不操作 GE。
+function M:AttachForEquipment(Character)
+    if self._ChangingEquipment or not IsValid(Character) then return false end
+    if IsValid(self.EquippedCharacter) then return self.EquippedCharacter == Character end
     local Socket = tostring(self.EquipSocketName)
     local AttachMesh = Socket ~= "" and Socket ~= "None"
-    if AttachMesh and (not IsValid(Character.Mesh) or not Character.Mesh:DoesSocketExist(self.EquipSocketName)) then
-        print("Weapon: equip socket does not exist", Socket)
-        return false
-    end
-
-    self._ChangingEquipment = true
-    local Handles = {}
-    local Attached = false
-    local function Rollback()
-        RemoveEffects(ASC, Handles)
-        if Attached then
-            self:K2_DetachFromActor(UE.EDetachmentRule.KeepWorld, UE.EDetachmentRule.KeepWorld, UE.EDetachmentRule.KeepWorld)
-        end
-        self._ChangingEquipment = false
-        return false
-    end
-
     if AttachMesh then
-        Attached = self:K2_AttachToComponent(Character.Mesh, self.EquipSocketName,
-            UE.EAttachmentRule.SnapToTarget, UE.EAttachmentRule.SnapToTarget, UE.EAttachmentRule.KeepRelative, false)
-        if not Attached then
-            return Rollback()
-        end
-    end
-
-    local function ApplySpec(Spec)
-        if not Spec then
+        if not IsValid(Character.Mesh) or not Character.Mesh:DoesSocketExist(self.EquipSocketName) then
             return false
         end
-        local Handle = ASC:BP_ApplyGameplayEffectSpecToSelf(Spec)
-        if not UE.UAssassinWeaponGASLibrary.IsEffectHandleValid(Handle) then
-            return false
-        end
-        table.insert(Handles, Handle)
-        return Handle
+        if not self:K2_AttachToComponent(Character.Mesh, self.EquipSocketName,
+            UE.EAttachmentRule.SnapToTarget, UE.EAttachmentRule.SnapToTarget,
+            UE.EAttachmentRule.KeepRelative, false) then return false end
     end
-    local BaseStatsHandle = ApplySpec(self:MakeBaseStatsSpec(ASC))
-    if not BaseStatsHandle then
-        return Rollback()
-    end
-    for _, EffectClass in ipairs(Effects) do
-        if not ApplySpec(self:MakeEquipmentSpec(ASC, EffectClass)) then
-            return Rollback()
-        end
-    end
-
-    self._EquipmentASC = ASC
-    self._EquipmentHandles = Handles
-    self._BaseStatsEffectHandle = BaseStatsHandle
-    self._AttachedByEquipment = Attached
+    self._AttachedByEquipment = AttachMesh
     self.EquippedCharacter = Character
     self:SetOwner(Character)
-    self._ChangingEquipment = false
     self._WeaponDrawn = false
     BackClothCollision.Update(self)
-    self:OnWeaponEquipped(Character)
     return true
 end
 
-function M:UnequipFromCharacter()
-    if self._ChangingEquipment or not self:HasAuthority() then
-        return false
-    end
-    self._ChangingEquipment = true
+-- 仅供装备管理器调用：清除布料碰撞和挂接归属，不操作 GE。
+function M:DetachForEquipment()
+    if self._ChangingEquipment then return false end
     BackClothCollision.Clear(self)
-    local PreviousCharacter = self.EquippedCharacter
-    local ASC = self._EquipmentASC
-    local Handles = self._EquipmentHandles
-    self._EquipmentASC = nil
-    self._EquipmentHandles = {}
-    self._BaseStatsEffectHandle = nil
-    RemoveEffects(ASC, Handles)
     if self._AttachedByEquipment then
         self:K2_DetachFromActor(UE.EDetachmentRule.KeepWorld, UE.EDetachmentRule.KeepWorld, UE.EDetachmentRule.KeepWorld)
     end
     self._AttachedByEquipment = false
+    self._WeaponDrawn = false
     self.EquippedCharacter = nil
     self:SetOwner(nil)
-    self._ChangingEquipment = false
-    if IsValid(PreviousCharacter) then
-        self:OnWeaponUnequipped(PreviousCharacter)
-    end
     return true
 end
 
--- 切换视觉挂接，不重复应用或移除装备 GE。
+-- 按拔出状态切换手持或收纳插槽并更新布料碰撞，不重复应用或移除装备 GE；未配置手持插槽时跳过。
 function M:SetWeaponDrawn(Drawn)
     local HandSocket = self.DrawnSocketName
     if HandSocket == nil or tostring(HandSocket) == "" or tostring(HandSocket) == "None" then
         return true -- 未配置双插槽的武器保持原有行为。
     end
     local Character = self.EquippedCharacter
-    if not self:HasAuthority() or not IsValid(Character) or not IsValid(Character.Mesh) then
+    if not IsValid(Character) or not IsValid(Character.Mesh) then
         return false
     end
     local Socket = Drawn and HandSocket or self.EquipSocketName
@@ -332,8 +210,9 @@ function M:SetWeaponDrawn(Drawn)
     return true
 end
 
+-- 扣除盾牌耐久，发生变化时触发通知，并返回实际扣除量。
 function M:ApplyShieldDamage(Damage)
-    if not self:HasAuthority() or not self:IsShieldWeapon() then
+    if not self:IsShieldWeapon() then
         return 0.0
     end
     ---@cast self AssassinShieldWeaponBase
@@ -346,8 +225,9 @@ function M:ApplyShieldDamage(Damage)
     return OldHealth - NewHealth
 end
 
+-- 恢复盾牌耐久且不超过上限，发生变化时触发通知，并返回实际恢复量。
 function M:RepairShield(Amount)
-    if not self:HasAuthority() or not self:IsShieldWeapon() then
+    if not self:IsShieldWeapon() then
         return 0.0
     end
     ---@cast self AssassinShieldWeaponBase
@@ -361,9 +241,12 @@ function M:RepairShield(Amount)
     return NewHealth - OldHealth
 end
 
+-- 通知装备管理器清理本武器的效果和栏位，再调用父类 EndPlay。
 function M:ReceiveEndPlay(EndPlayReason)
-    -- The owner's ASC is on PlayerState and can survive the pawn or this weapon.
-    self:UnequipFromCharacter()
+    self._EquipmentEnding = true
+    if self._EquipmentManager then
+        self._EquipmentManager:OnWeaponEndPlay(self)
+    end
     self.Overridden.ReceiveEndPlay(self, EndPlayReason)
 end
 

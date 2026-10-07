@@ -15,8 +15,8 @@ UE = {
 }
 UnLua = { Class = function(SuperModule) return {} end }
 
-local AttackSystem = require("Combat.AttackSystem")
-local AttackEnums = require("Combat.AttackPhase")
+local AttackSystem = require("Combat.attack.AttackSystem")
+local AttackEnums = require("Combat.attack.AttackPhase")
 local AttackPhase = AttackEnums.AttackPhase
 local AttackType = AttackEnums.AttackType
 local AbilityMethods = require("Abilities.GA_LightAttack")
@@ -34,7 +34,6 @@ end
 local function NewConfiguredAxe(Owner)
     local ConfiguredAxe = { LightAttackMontages = NewArray(), EquippedCharacter = Owner }
     ConfiguredAxe.EquipSocketName = "Axe_Back"
-    function ConfiguredAxe:HasAuthority() return true end
     function ConfiguredAxe:K2_AttachToComponent(_, Socket)
         self.AttachedSocket = Socket
         return true
@@ -54,12 +53,13 @@ local function NewConfiguredAxe(Owner)
 end
 
 local function NewFixture(CommitSucceeds)
-    local Owner = { Granted = false, Mesh = { DoesSocketExist = function() return true end } }
+    local Owner = { Granted = false, LightAttackAbilityClass = AbilityClass, Mesh = { DoesSocketExist = function() return true end } }
     local ASC = { GrantCount = 0 }
     Owner.ASC = ASC
     Owner.HandheldWeapon = NewConfiguredAxe(Owner)
     function Owner:HasAbility() return self.Granted end
-    function ASC:K2_GiveAbility()
+    function ASC:K2_GiveAbility(Class)
+        assert(Class == Owner.LightAttackAbilityClass, "Grant must use blueprint configuration")
         self.GrantCount = self.GrantCount + 1
         Owner.Granted = true
         return 1
@@ -77,7 +77,8 @@ local function NewFixture(CommitSucceeds)
     function Ability:PlaySwordSheathe() self.Sheathed = true end
     function Ability:K2_CancelAbility() self:K2_OnEndAbility(true) end
     function Ability:K2_EndAbility() self:K2_OnEndAbility(false) end
-    function ASC:TryActivateAbilityByClass()
+    function ASC:TryActivateAbilityByClass(Class)
+        assert(Class == Owner.LightAttackAbilityClass, "Activation must use blueprint configuration")
         Ability:K2_ActivateAbility()
         return not Ability.Ending
     end
@@ -85,6 +86,15 @@ local function NewFixture(CommitSucceeds)
 end
 
 local System, Light, Ability, ASC = NewFixture()
+local AttackBase = require("Combat.attack.AttackBase")
+local LightAttack = require("Combat.attack.LightAttack")
+assert(Light.GrantAbility == AttackBase.GrantAbility)
+assert(Light.AbilityClass == System.Owner.LightAttackAbilityClass)
+assert(LightAttack.New({ Owner = {}, ASC = {} }) == nil,
+    "Missing blueprint configuration must fail without a hardcoded fallback")
+local OtherClass = {}
+local Configured = assert(LightAttack.New({ Owner = { LightAttackAbilityClass = OtherClass }, ASC = {} }))
+assert(Configured.AbilityClass == OtherClass, "Custom blueprint class must be preserved")
 local SeenTypes = {}
 local TypeCount = 0
 for _, Type in pairs(AttackType) do

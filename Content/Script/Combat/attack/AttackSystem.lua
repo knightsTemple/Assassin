@@ -1,5 +1,5 @@
-local AttackType = require("Combat.AttackPhase").AttackType
-local LightAttack = require("Combat.LightAttack")
+local AttackType = require("Combat.attack.AttackPhase").AttackType
+local LightAttack = require("Combat.attack.LightAttack")
 
 ---@class AttackModule
 ---@field GrantAbility fun(self: AttackModule): boolean
