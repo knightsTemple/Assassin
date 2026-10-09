@@ -47,7 +47,7 @@
 ---@field OnWeaponEquipped fun(self: AssassinWeaponBase, Character: any)
 ---@field OnWeaponUnequipped fun(self: AssassinWeaponBase, PreviousCharacter: any)
 local M = UnLua.Class()
-local BackClothCollision = require("Weapon.BackClothCollision")
+local EventDefine = require("Core.EventSubscribe.EventDefine")
 
 -- 检查对象是否存在且仍是有效的 UE 对象。
 local function IsValid(Object)
@@ -166,14 +166,12 @@ function M:AttachForEquipment(Character)
     self.EquippedCharacter = Character
     self:SetOwner(Character)
     self._WeaponDrawn = false
-    BackClothCollision.Update(self)
     return true
 end
 
--- 仅供装备管理器调用：清除布料碰撞和挂接归属，不操作 GE。
+-- 仅供装备管理器调用：解除挂接归属，不操作 GE；表现模块在事务完成后接收通知。
 function M:DetachForEquipment()
     if self._ChangingEquipment then return false end
-    BackClothCollision.Clear(self)
     if self._AttachedByEquipment then
         self:K2_DetachFromActor(UE.EDetachmentRule.KeepWorld, UE.EDetachmentRule.KeepWorld, UE.EDetachmentRule.KeepWorld)
     end
@@ -184,7 +182,7 @@ function M:DetachForEquipment()
     return true
 end
 
--- 按拔出状态切换手持或收纳插槽并更新布料碰撞，不重复应用或移除装备 GE；未配置手持插槽时跳过。
+-- 切换插槽成功后发布拔出状态变化，武器不再直接依赖布料等表现模块。
 function M:SetWeaponDrawn(Drawn)
     local HandSocket = self.DrawnSocketName
     if HandSocket == nil or tostring(HandSocket) == "" or tostring(HandSocket) == "None" then
@@ -204,9 +202,14 @@ function M:SetWeaponDrawn(Drawn)
         UE.EAttachmentRule.KeepRelative, false) then
         return false
     end
+    local WasDrawn = self._WeaponDrawn == true
     self._AttachedByEquipment = true
     self._WeaponDrawn = Drawn
-    BackClothCollision.Update(self)
+    if WasDrawn ~= Drawn and Character.Events and not Character._EndingGameplay then
+        Character.Events:Emit(EventDefine.WeaponDrawnChanged, {
+            Character = Character, Weapon = self, Drawn = Drawn,
+        })
+    end
     return true
 end
 

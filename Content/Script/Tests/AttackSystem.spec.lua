@@ -16,6 +16,8 @@ UE = {
 UnLua = { Class = function(SuperModule) return {} end }
 
 local AttackSystem = require("Combat.attack.AttackSystem")
+local EventBus = require("Core.EventSubscribe.EventBus")
+local EventDefine = require("Core.EventSubscribe.EventDefine")
 local AttackEnums = require("Combat.attack.AttackPhase")
 local AttackPhase = AttackEnums.AttackPhase
 local AttackType = AttackEnums.AttackType
@@ -54,6 +56,7 @@ end
 
 local function NewFixture(CommitSucceeds)
     local Owner = { Granted = false, LightAttackAbilityClass = AbilityClass, Mesh = { DoesSocketExist = function() return true end } }
+    Owner.Events = EventBus.New()
     local ASC = { GrantCount = 0 }
     Owner.ASC = ASC
     Owner.HandheldWeapon = NewConfiguredAxe(Owner)
@@ -268,3 +271,27 @@ assert(EquippedAxe.AttachedSocket == "Axe_Back")
 assert(AttachSystem.ActiveAttack == nil)
 AttachSystem:Destroy()
 print("PASS: draw/sheath timed attachment, playback-rate conversion and cancellation cleanup")
+
+-- 外部武器移除无需等待下一次输入或动画回调，事件驱动当前攻击自行结束。
+local EventSystem, EventLight, EventAbility = NewFixture()
+local EventOwner = EventSystem.Owner
+local EventWeapon = EventOwner.HandheldWeapon
+assert(EventSystem:LightAttack())
+EventOwner.Events:Emit(EventDefine.WeaponChanged, {
+    Character = EventOwner, Slot = "ShieldWeapon", Reason = "Unequip",
+})
+assert(not EventAbility.Ending, "unrelated slot must not cancel attack")
+local AnotherSystem = NewFixture()
+AnotherSystem.Owner.Events:Emit(EventDefine.WeaponChanged, {
+    Character = AnotherSystem.Owner, Slot = "HandheldWeapon", Reason = "Unequip",
+})
+assert(not EventAbility.Ending, "another actor bus must not cancel attack")
+EventOwner.HandheldWeapon = nil
+EventOwner.Events:Emit(EventDefine.WeaponChanged, {
+    Character = EventOwner, Slot = "HandheldWeapon", OldWeapon = EventWeapon, Reason = "WeaponDestroyed",
+})
+assert(EventAbility.Ending and EventSystem.ActiveAttack == nil and EventLight.ActiveWeapon == nil)
+EventSystem:Destroy()
+assert(EventOwner.Events:UnsubscribeOwner(EventLight) == 0, "module destruction must unsubscribe")
+AnotherSystem:Destroy()
+print("PASS: weapon removal event cancels active ability, slot/actor isolation and unsubscribe")

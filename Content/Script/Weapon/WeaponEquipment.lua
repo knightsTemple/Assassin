@@ -3,9 +3,11 @@
 ---@alias WeaponSlot "HandheldWeapon"|"ShieldWeapon"|"BowWeapon"|"HiddenBladeWeapon"
 ---@class WeaponEquipment
 ---@field Owner BP_AssassinGirl_C
+---@field Events? EventBus 角色持有的事件总线，管理器不负责销毁
 ---@field WeaponClass any
 ---@field Records table<AssassinWeaponBase, table> 按武器保存 ASC、基础属性句柄和全部装备效果句柄
 local WeaponEquipment = {}
+local EventDefine = require("Core.EventSubscribe.EventDefine")
 WeaponEquipment.__index = WeaponEquipment
 
 WeaponEquipment.Slots = {
@@ -80,12 +82,26 @@ function WeaponEquipment:MakeBaseStatsSpec(Weapon, ASC)
 end
 
 -- 为有效角色创建武器栏位管理器，并加载用于校验武器实例的基类。
-function WeaponEquipment.New(Owner)
+---@param Owner BP_AssassinGirl_C
+---@param Events? EventBus 默认使用 Owner.Events
+function WeaponEquipment.New(Owner, Events)
     if not IsValid(Owner) then return nil end
     return setmetatable({
-        Owner = Owner, Busy = false, Destroyed = false, Records = {},
+        Owner = Owner, Events = Events or Owner.Events, Busy = false, Destroyed = false, Records = {},
         WeaponClass = UE.UClass.Load("/Script/Assassin.AssassinWeaponBase"),
     }, WeaponEquipment)
+end
+
+-- 只发布最终栏位状态，调用点须仍位于换装锁内；角色整体退出不广播普通换装事件。
+---@param Slot WeaponSlot
+---@param OldWeapon AssassinWeaponBase?
+---@param NewWeapon AssassinWeaponBase?
+---@param Reason WeaponChangedReason
+function WeaponEquipment:NotifySlotChanged(Slot, OldWeapon, NewWeapon, Reason)
+    if self.Destroyed or not self.Events or not IsValid(self.Owner) or self.Owner._EndingGameplay then return end
+    self.Events:Emit(EventDefine.WeaponChanged, {
+        Character = self.Owner, Slot = Slot, OldWeapon = OldWeapon, NewWeapon = NewWeapon, Reason = Reason,
+    })
 end
 
 -- 根据武器类型选择默认栏位；无法匹配时返回 nil，袖箭须由调用方显式指定栏位。
@@ -202,10 +218,17 @@ function WeaponEquipment:OnWeaponEndPlay(Weapon)
     local WasBusy = self.Busy
     self.Busy = true
     self:RemoveWeapon(Weapon, true)
+    local ClearedSlots = {}
     if self.Owner then
         for _, Slot in ipairs(self.Slots) do
-            if self.Owner[Slot] == Weapon then self.Owner[Slot] = nil end
+            if self.Owner[Slot] == Weapon then
+                self.Owner[Slot] = nil
+                ClearedSlots[#ClearedSlots + 1] = Slot
+            end
         end
+    end
+    for _, Slot in ipairs(ClearedSlots) do
+        self:NotifySlotChanged(Slot, Weapon, nil, "WeaponDestroyed")
     end
     self.Busy = WasBusy
 end
@@ -258,7 +281,12 @@ function WeaponEquipment:Equip(Weapon, Slot)
         end
         if Previous == Weapon then
             -- 管理器记录保证幂等；也支持首次装配预先配置的 Actor。
-            return self:EquipWeapon(Weapon)
+            local AlreadyEquipped = self.Records[Weapon] ~= nil
+            local Equipped = self:EquipWeapon(Weapon)
+            if Equipped and not AlreadyEquipped then
+                self:NotifySlotChanged(Slot, nil, Weapon, "Equip")
+            end
+            return Equipped
         end
         if Previous and IsValid(Previous) and IsValid(Previous.EquippedCharacter)
             and Previous.EquippedCharacter ~= Owner then
@@ -273,6 +301,7 @@ function WeaponEquipment:Equip(Weapon, Slot)
         Owner[Slot] = nil
         if self:EquipWeapon(Weapon) then
             Owner[Slot] = Weapon
+            self:NotifySlotChanged(Slot, Previous, Weapon, "Equip")
             return true
         end
 
@@ -281,9 +310,13 @@ function WeaponEquipment:Equip(Weapon, Slot)
                 Owner[Slot] = Previous
                 return false, "新武器装配失败，已恢复原武器"
             end
+            self:NotifySlotChanged(Slot, Previous, nil, "RollbackFailed")
             return false, "新武器装配失败，原武器恢复失败，栏位已清空"
         end
         if IsValid(Previous) then Owner[Slot] = Previous end
+        if Previous and Owner[Slot] == nil then
+            self:NotifySlotChanged(Slot, Previous, nil, "RollbackFailed")
+        end
         return false, "新武器装配失败"
     end)
 end
@@ -307,6 +340,7 @@ function WeaponEquipment:Unequip(Slot)
         if Weapon and self.Records[Weapon] then self:RemoveWeapon(Weapon) end
         -- 只清除过期/错误引用，不卸装其他角色的装备。
         self.Owner[Slot] = nil
+        if Weapon then self:NotifySlotChanged(Slot, Weapon, nil, "Unequip") end
         return true
     end)
 end
@@ -349,6 +383,7 @@ function WeaponEquipment:Destroy()
         for _, Slot in ipairs(self.Slots) do self.Owner[Slot] = nil end
     end
     self.Owner = nil
+    self.Events = nil
 end
 
 return WeaponEquipment

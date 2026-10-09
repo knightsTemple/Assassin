@@ -132,11 +132,17 @@ local Girl = setmetatable({ Overridden = { ReceiveEndPlay = function() end }, Ef
 function Girl:GetAssassinAttributeSet() return {} end
 assert(not Girl:EquipWeapon(Weapon(0)))
 Girl:OnGASInitialized()
+local CharacterEvents, CharacterCloth = Girl.Events, Girl.ClothCollision
+Girl:OnGASInitialized()
+assert(Girl.Events == CharacterEvents and Girl.ClothCollision == CharacterCloth)
 assert(Girl:EquipWeapon(Weapon(4)) and Girl.Effects == 1)
 assert(Girl:UnequipWeapon("HandheldWeapon") and Girl.Effects == 0)
 assert(Girl:EquipWeapon(Weapon(0)))
 Girl:ReceiveEndPlay(0)
 assert(Girl.Effects == 0 and Girl.WeaponEquipment == nil)
+assert(Girl.Events == nil and Girl.ClothCollision == nil and CharacterEvents.Destroyed and CharacterCloth.Destroyed)
+Girl:OnGASInitialized()
+assert(Girl.Events == nil, "late GAS initialization must not recreate modules after EndPlay")
 print("PASS: BP_AssassinGirl GAS initialization, equip/unequip wrappers and EndPlay")
 
 local DefaultOwner, DefaultSystem = Fixture()

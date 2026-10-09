@@ -1,11 +1,13 @@
 local AttackBase = require("Combat.attack.AttackBase")
 local AttackPhase = require("Combat.attack.AttackPhase").AttackPhase
+local EventDefine = require("Core.EventSubscribe.EventDefine")
 
 -- 收剑等待的默认值和下限（秒）。
 local DefaultSwordSheatheDelay = 10.0
 
 ---@class LightAttack : AttackBase
 ---@field AttackSystem AttackSystem
+---@field Events? EventBus 角色事件总线，模块销毁时退订
 ---@field Phase AttackPhase
 ---@field ActiveWeapon? AssassinWeaponBase
 ---@field SwordActionPlayRate number
@@ -36,7 +38,18 @@ function LightAttack.New(AttackSystem)
         ComboIndex = 0,
     }
     for Key, Value in pairs(State) do Self[Key] = Value end
+    Self.Events = Self.Owner.Events
+    if Self.Events then
+        Self.Events:Subscribe(EventDefine.WeaponChanged, Self, Self.OnWeaponChanged)
+    end
     return Self
+end
+
+-- 武器销毁等外部变化由装备系统广播；攻击模块自行取消，不要求装备模块了解 GA。
+---@param Payload WeaponChangedPayload
+function LightAttack:OnWeaponChanged(Payload)
+    if self.Destroyed or Payload.Character ~= self.Owner or Payload.Slot ~= "HandheldWeapon" then return end
+    if self.ActiveWeapon and not self:HasCurrentWeapon() then self:CancelActiveAbility() end
 end
 
 -- 读取角色蓝图配置的轻攻击 GA 类，供基类初始化使用。
@@ -252,6 +265,10 @@ end
 -- 销毁模块：由基类取消活动技能并释放公共引用，再清理轻攻击专属状态；可重复调用。
 function LightAttack:Destroy()
     if self.Destroyed then return end
+    if self.Events then
+        self.Events:UnsubscribeOwner(self)
+        self.Events = nil
+    end
     AttackBase.Destroy(self)
     self.PendingLightAttack = false
     self.CanAcceptNextAttack = false

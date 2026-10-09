@@ -137,7 +137,7 @@ function EventBus:Emit(Event, Payload)
     local Snapshot = {}
     for Index, Record in ipairs(List) do Snapshot[Index] = Record end
 
-    self.DispatchDepth = self.DispatchDepth + 1
+    self.DispatchDepth = self.DispatchDepth + 1 --防止事件互相触发造成无限递归；不同事件之间的嵌套也计入深度。
     -- 外层保护确保意外错误也能恢复分发深度。
     local OK, Error = xpcall(function()
         for _, Record in ipairs(Snapshot) do
