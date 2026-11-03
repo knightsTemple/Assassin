@@ -41,6 +41,16 @@
 ---@field Weapon AssassinWeaponBase 完成插槽切换的武器
 ---@field Drawn boolean true 为已拔出，false 为已收起
 
+---@class AttackHitPayload
+---@field Character BP_AssassinGirl_C 攻击者
+---@field Target EventObject 被扫掠检出的 Pawn，阵营/伤害规则由监听者处理
+---@field Weapon AssassinWeaponBase 当前攻击武器
+---@field Source string Notify 配置的检测源：MainWeapon 或骨骼名
+---@field ComboIndex? integer 连击段数（非连击攻击可以为空）
+---@field Window EventObject 当前 Notify 对象
+---@field WindowSerial integer 当前角色独立的窗口序号
+---@field Hit any FHitResult 命中数据
+
 -- 任务完成通知的数据；奖励是否已领取不由这个事件表示。
 ---@class QuestFinishedPayload
 ---@field Player EventObject 完成任务的玩家角色
@@ -48,10 +58,13 @@
 
 -- 通用接口接受的载荷类型集合；具体事件应使用下方指定的那一种类型。
 -- 联合类型不会自动约束 Event 与 Payload 的一一对应，调用处应标注明确的载荷类型。
----@alias EventPayload PlayerDeadPayload|HealthChangedPayload|WeaponChangedPayload|WeaponDrawnChangedPayload|QuestFinishedPayload
+---@alias EventPayload PlayerDeadPayload|HealthChangedPayload|WeaponChangedPayload|WeaponDrawnChangedPayload|AttackHitPayload|QuestFinishedPayload
 
 ---@enum EventDefine
 local EventDefine = {
+    -- 窗口内扫掠命中 Pawn；每个窗口对同一 Actor 只发送一次，不直接扣血。
+    -- Payload: Character, Target, Weapon, Source, ComboIndex, Hit, Window, WindowSerial。
+    AttackHit = "Combat.AttackHit",
     -- 参数：PlayerDeadPayload；发布者：角色死亡状态的管理模块。
     -- 时机：死亡状态写入完成后，每次存活到死亡的转换只发送一次；复活后可再次发送。
     -- 不在每次受伤或 Actor EndPlay 时发送；若同次处理还发布生命值变化，应先发 HealthChanged。

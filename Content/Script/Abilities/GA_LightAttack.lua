@@ -1,4 +1,4 @@
-local WeaponBase = require("Weapon.WeaponBase")
+﻿local WeaponBase = require("Weapon.WeaponBase")
 local AttackEnums = require("Combat.attack.AttackPhase")
 local AttackPhase = AttackEnums.AttackPhase
 local AttackType = AttackEnums.AttackType
@@ -110,7 +110,6 @@ function M:PlaySwordAction(Montage, Phase)
     Task.OnCancelled:Add(self, self.OnMontageInterrupted)
     -- 收拔剑只覆盖上半身，释放本技能持有的移动锁。
     self:UnlockMoveInput()
-    print("GA_LightAttack: sword", Phase, Montage:GetName())
     Task:ReadyForActivation()
     if not self.Ending and self.MontageTask == Task then
         self:StartWeaponAttachTask(Phase, Montage)
@@ -239,7 +238,6 @@ function M:PlayCurrentAttack()
     Task.OnInterrupted:Add(self, self.OnMontageInterrupted)
     Task.OnCancelled:Add(self, self.OnMontageInterrupted)
     self:LockMoveInput()
-    print("GA_LightAttack: play", self.LightAttack.ComboIndex, Montage:GetName())
     Task:ReadyForActivation()
     -- 播放失败可能同步触发 OnCancelled，此时不能再创建计时任务。
     if not self.Ending and self.MontageTask == Task then
@@ -392,6 +390,11 @@ function M:UnlockMoveInput()
 end
 
 function M:ClearMontageTask(AbilityEnding)
+    local Avatar = self:GetAvatarActorFromActorInfo()
+    if IsValid(Avatar) then
+        if IsValid(Avatar.AttackTraceComponent) then Avatar.AttackTraceComponent:ClearWindow() end
+        if Avatar.AttackHitReceiver then Avatar.AttackHitReceiver:Clear() end
+    end
     self:ClearWeaponAttachTask()
     self:ClearSwordDrawTask()
     local Task = self.MontageTask
@@ -459,7 +462,6 @@ function M:K2_OnEndAbility(WasCancelled)
         self.LightAttack:OnAttackEnded(self)
     end
     self.LightAttack = nil
-    print("GA_LightAttack: ended", WasCancelled)
 end
 
 return M

@@ -8,6 +8,8 @@
 
 ---@class BP_AssassinGirl_C
 ---@field AttackSystem? AttackSystem
+---@field AttackTraceComponent? AttackTraceComponent 蓝图检测组件
+---@field AttackHitReceiver? AttackHitReceiver 命中规则与事件接收器
 ---@field LightAttackAbilityClass any 蓝图配置的 GameplayAbility 类引用
 ---@field WeaponEquipment? WeaponEquipment
 ---@field Events? EventBus 当前角色独立持有的事件总线
@@ -25,6 +27,7 @@ local AttackSystem = require("Combat.attack.AttackSystem")
 local WeaponEquipment = require("Weapon.WeaponEquipment")
 local BackClothCollision = require("Weapon.BackClothCollision")
 local EventBus = require("Core.EventSubscribe.EventBus")
+local AttackHitReceiver = require("Combat.attack.AttackHitReceiver")
 local EnhancedInput = require("UnLua.EnhancedInput")
 
 -- function M:Initialize(Initializer)
@@ -98,10 +101,18 @@ function M:OnLightAttackStarted()
     end
 end
 
+-- OnAttackWindow 由角色蓝图处理。组件逐条写入 LastHit 后调用此蓝图事件。
+function M:OnAttackHit()
+    if self._EndingGameplay then return end
+    if not self.AttackHitReceiver then self.AttackHitReceiver = AttackHitReceiver.New(self) end
+    self.AttackHitReceiver:Receive(self.AttackTraceComponent)
+end
+
 EnhancedInput.BindAction(M, "/Game/Input/IA_LightAttack.IA_LightAttack", "Started", M.OnLightAttackStarted)
 
 function M:ReceiveEndPlay(EndPlayReason)
     self._EndingGameplay = true
+    if self.AttackHitReceiver then self.AttackHitReceiver:Clear(); self.AttackHitReceiver = nil end
     -- 先停止攻击，再清理表现和装备，最后释放总线，避免清理过程中继续触发业务。
     if self.AttackSystem then
         self.AttackSystem:Destroy()

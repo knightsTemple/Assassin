@@ -5,6 +5,7 @@
 #include "AbilitySystemInterface.h"
 #include "AssassinCharacter.generated.h"
 
+class UAnimSequenceBase;
 class AAssassinWeaponBase;
 class UAbilitySystemComponent;
 class UAssassinAttributeSet;
@@ -18,6 +19,10 @@ class ASSASSIN_API AAssassinCharacter : public ACharacter, public IAbilitySystem
 	GENERATED_BODY()
 
 public:
+    /** 0=begin, 1=tick, 2=end. Runtime state belongs to the character's Lua module. */
+    UFUNCTION(BlueprintImplementableEvent, Category = "Combat")
+    void OnAttackWindow(UObject* Window, UAnimSequenceBase* Animation, FName Source, uint8 Phase);
+
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
 	UFUNCTION(BlueprintPure, Category = "Abilities")
@@ -67,3 +72,4 @@ protected:
 private:
 	bool bAbilitySystemInitialized = false;
 };
+

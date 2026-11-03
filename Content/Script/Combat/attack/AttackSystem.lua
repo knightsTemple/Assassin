@@ -38,7 +38,6 @@ function AttackSystem.New(Owner)
         Destroyed = false,
     }, AttackSystem)
 
-    -- 新攻击形式在这里创建并注册，各模块自行维护资源和攻击流程。
     local Light = LightAttack.New(System)
     if not Light then
         System:Destroy()
@@ -49,7 +48,6 @@ function AttackSystem.New(Owner)
 end
 
 ---@param Type AttackType
----@overload fun(self: AttackSystem, Type: 1): LightAttack?
 ---@return AttackModule?
 function AttackSystem:GetAttack(Type)
     if self.Destroyed then
@@ -83,20 +81,15 @@ function AttackSystem:RequestAttack(Type)
     return Attack:HandleInput()
 end
 
--- 技能可能由 GAS 直接激活，执行流程开始时也要检查攻击互斥。
+-- 技能激活时向攻击系统申请互斥占用
 ---@param Attack AttackModule
 ---@return boolean
 function AttackSystem:TryBeginAttack(Attack)
     if self.Destroyed or not Attack or self.ActiveAttack then
         return false
     end
-    for _, RegisteredAttack in pairs(self.Attacks) do
-        if RegisteredAttack == Attack then
-            self.ActiveAttack = Attack
-            return true
-        end
-    end
-    return false
+    self.ActiveAttack = Attack
+    return true
 end
 
 ---@param Attack AttackModule
@@ -111,7 +104,6 @@ function AttackSystem:LightAttack()
 end
 
 function AttackSystem:HeavyAttack()
-    -- 注册 Heavy 模块后即可使用；目前未实现，返回 false。
     return self:RequestAttack(AttackType.Heavy)
 end
 
